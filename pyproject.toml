@@ -53,8 +53,6 @@ Repository = "https://github.com/your-username/tcpou-to-mermaid"
 Issues = "https://github.com/your-username/tcpou-to-mermaid/issues"
 
 [project.scripts]
-tcpou-to-mermaid = "tcpou_to_mermaid.__main__:main"
-tcpou_to_mermaid = "tcpou_to_mermaid.__main__:main"
 pou2md = "tcpou_to_mermaid.__main__:main"
 
 [tool.setuptools.packages.find]
