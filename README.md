@@ -1,5 +1,8 @@
 # TcPOU to Mermaid Converter
 
+[![Python Versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A modular Python tool that converts Beckhoff TwinCAT 3 `.TcPOU` files into Mermaid diagrams embedded in Markdown (`.md`) documents.
 
 ## Features
@@ -110,3 +113,7 @@ Run the test suite using Python's standard `unittest` module:
 ```bash
 python -m unittest tests/test_converter.py -v
 ```
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).

@@ -6,8 +6,51 @@ build-backend = "setuptools.build_meta"
 name = "tcpou-to-mermaid"
 version = "0.1.0"
 description = "Convert TwinCAT 3 .TcPOU files into Mermaid diagrams in Markdown"
-readme = "tcpou_to_mermaid/README.md"
+readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Cristiano" }
+]
+keywords = [
+    "twincat",
+    "twincat3",
+    "beckhoff",
+    "plc",
+    "iec61131-3",
+    "mermaid",
+    "markdown",
+    "cfc",
+    "fbd",
+    "ladder-diagram",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Manufacturing",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Documentation",
+    "Topic :: Software Development :: Code Generators",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff",
+    "build",
+    "twine",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-username/tcpou-to-mermaid"
+Repository = "https://github.com/your-username/tcpou-to-mermaid"
+Issues = "https://github.com/your-username/tcpou-to-mermaid/issues"
 
 [project.scripts]
 tcpou-to-mermaid = "tcpou_to_mermaid.__main__:main"
@@ -16,3 +59,6 @@ pou2md = "tcpou_to_mermaid.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["tcpou_to_mermaid*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
