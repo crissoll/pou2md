@@ -115,6 +115,18 @@ Run the test suite using Python's standard `unittest` module:
 python -m unittest tests/test_converter.py -v
 ```
 
+## Disclaimer & AI Disclosure
+
+> [!WARNING]
+> **Industrial Automation & Safety Notice**
+> 
+> This tool was developed with the assistance of Artificial Intelligence (AI). 
+> 
+> * **Visualization Only**: Generated diagrams and Markdown files are intended for documentation and visualization purposes. Never rely solely on this tool for safety audits, formal verification, or machine commissioning.
+> * **No Warranty / As-Is**: This software is provided "as is", without warranty of any kind, express or implied.
+> * **Limitation of Liability**: The author assumes no responsibility or liability for any errors, omissions, machine downtime, equipment damage, or personal injury resulting from the use of this tool. Use entirely at your own risk.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+
