@@ -57,6 +57,12 @@ def main() -> int:
         default=False,
         help="Repeat input variable blocks per connection in CFC (avoids long cross-diagram wires).",
     )
+    parser.add_argument(
+        "-w",
+        "--watch",
+        action="store_true",
+        help="Watch input file or directory for changes and automatically re-convert.",
+    )
 
     args = parser.parse_args()
     input_path = Path(args.input)
@@ -71,6 +77,24 @@ def main() -> int:
         bifurcate=args.bifurcate,
         repeat_inputs=args.repeat_inputs,
     )
+
+    if args.watch:
+        if input_path.is_dir() and not args.output and not args.stdout:
+            print(
+                "Error: Please specify an output target with -o / --output, or use --stdout.",
+                file=sys.stderr,
+            )
+            return 1
+        from .watcher import start_watcher
+
+        return start_watcher(
+            input_path=input_path,
+            converter=converter,
+            output=args.output,
+            recursive=args.recursive,
+            unified=args.unified,
+            to_stdout=args.stdout or (input_path.is_file() and not args.output),
+        )
 
     if input_path.is_file():
         md_text, out_file = converter.convert_file(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from .model.declaration import PouDeclaration
@@ -9,6 +10,19 @@ from .parser.nwl_parser import NWLParser
 from .parser.cfc_parser import CFCParser
 from .parser.st_parser import STParser
 from .writer.markdown import MarkdownWriter
+
+
+def _read_file_with_retry(path: Path, max_retries: int = 3, delay: float = 0.1) -> str:
+    """Read a file with retries to handle transient file locks during editor saves."""
+    for attempt in range(max_retries):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+        except (PermissionError, OSError):
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(delay)
+    return ""
 
 
 class TcPOUConverter:
@@ -69,8 +83,7 @@ class TcPOUConverter:
     ) -> tuple[str, Path | None]:
         """Convert a single .TcPOU file, optionally writing to an output directory."""
         path = Path(file_path)
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
+        content = _read_file_with_retry(path)
 
         md_output = self.convert_content(content, filename=path.name)
 
@@ -112,8 +125,11 @@ class TcPOUConverter:
             A tuple of (written_file_paths, unified_markdown_text).
         """
         in_dir = Path(input_dir)
-        pattern = "**/*.TcPOU" if recursive else "*.TcPOU"
-        pou_files = sorted(in_dir.glob(pattern))
+        candidates = in_dir.rglob("*") if recursive else in_dir.iterdir()
+        pou_files = sorted(
+            (path for path in candidates if path.is_file() and path.suffix.lower() == ".tcpou"),
+            key=lambda path: str(path).lower(),
+        )
 
         if unified:
             merged_sections: list[str] = []

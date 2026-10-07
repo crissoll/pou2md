@@ -66,7 +66,7 @@ python -m tcpou_to_mermaid [input] [options]
 ### Command Syntax
 
 ```bash
-pou2md [input] [-o OUTPUT] [-r] [-u] [--stdout] [--curve {step,stepAfter,linear,basis,none}] [--no-bifurcate] [--repeat-inputs]
+pou2md [input] [-o OUTPUT] [-r] [-u] [--stdout] [-w] [--curve {step,stepAfter,linear,basis,none}] [--no-bifurcate] [--repeat-inputs]
 ```
 
 ### Options & Arguments
@@ -81,6 +81,7 @@ pou2md [input] [-o OUTPUT] [-r] [-u] [--stdout] [--curve {step,stepAfter,linear,
 | `--curve` | `step` \| `stepAfter` \| `linear` \| `basis` \| `none` | `step` | Mermaid flowchart wire routing style. `step` generates orthogonal right-angle wires entering blocks horizontally (`>`). |
 | `--no-bifurcate` | `Flag` | *(Bifurcation enabled)* | Disables bifurcation junction nodes (`(( ))`), drawing independent wires from the source pin to each destination pin. |
 | `--repeat-inputs` | `Flag` | `False` | In CFC diagrams, duplicates input variable blocks next to each connected pin to eliminate long cross-sheet wires. |
+| `-w`, `--watch` | `Flag` | `False` | Continuously watches the input file or directory and regenerates Markdown after changes. Press `Ctrl+C` to stop. |
 | `-h`, `--help` | `Flag` | - | Display CLI help message and exit. |
 
 ---
@@ -99,6 +100,40 @@ The destination path depends on the input type and flags provided:
 | **Directory** | `-u -o path/to/dir/` | Combines all POUs into `path/to/dir/unified.md`. |
 | **Directory** | `-u -o path/to/custom.md`| Combines all POUs into the exact specified file `path/to/custom.md`. |
 | **Any Input** | `--stdout` | Emits Markdown to terminal `stdout` without creating any files on disk. |
+
+## Continuous Watching (`-w`)
+
+Use `-w` to perform an initial conversion and then keep the process running while
+watching for added, modified, or removed `.TcPOU` files. The watcher polls the
+input path, debounces editor save operations, and releases its lock file when
+stopped with `Ctrl+C`.
+
+```bash
+# Watch a directory and update individual generated files
+pou2md MyPlcProject/ -r -w -o docs/generated/
+
+# Watch a directory and rebuild one unified document
+pou2md MyPlcProject/ -r -u -w -o docs/complete_system_manual.md
+
+# Watch one file and print each generated document to stdout
+pou2md POUs/FB_Motor.TcPOU -w
+```
+
+For directory input, specify `-o/--output` or `--stdout`, just as with a
+one-time conversion. When a source file is removed, its generated individual
+Markdown file is removed as well; unified output files are rebuilt instead.
+
+The default polling interval is one second, followed by a 250 ms save debounce.
+This is normally suitable for mapped drives and SMB shares, but network latency
+can make detection slower and a temporarily unavailable share is skipped until
+the next poll. The watcher uses an atomic lock-file claim, so two processes
+started for the same target cannot both watch it; the second process exits with
+an error. Different output targets intentionally use separate locks.
+
+Parsing errors are reported to `stderr` and do not terminate the watcher. This
+allows editors to save an incomplete XML document temporarily: the watcher
+waits and retries that file after the next change. The same behavior applies to
+an incomplete file present when the watcher starts.
 
 ---
 
