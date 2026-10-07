@@ -53,10 +53,10 @@ Once installed, the CLI tool can be executed from any terminal or directory usin
 
 ```bash
 # Global CLI command
-pou2md <input> [options]
+pou2md [input] [options]
 
 # Standard Python module syntax
-python -m tcpou_to_mermaid <input> [options]
+python -m tcpou_to_mermaid [input] [options]
 ```
 
 ---
@@ -66,14 +66,14 @@ python -m tcpou_to_mermaid <input> [options]
 ### Command Syntax
 
 ```bash
-pou2md <input> [-o OUTPUT] [-r] [-u] [--stdout] [--curve {step,stepAfter,linear,basis,none}] [--no-bifurcate] [--repeat-inputs]
+pou2md [input] [-o OUTPUT] [-r] [-u] [--stdout] [--curve {step,stepAfter,linear,basis,none}] [--no-bifurcate] [--repeat-inputs]
 ```
 
 ### Options & Arguments
 
 | Argument / Flag | Value Type / Choices | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `input` *(positional)* | `Path` (file or folder) | *(Required)* | Path to a single `.TcPOU` file or a directory containing `.TcPOU` files. |
+| `input` *(positional)* | `Path` (file or folder) | `.` *(Current dir)* | Path to a single `.TcPOU` file or a directory containing `.TcPOU` files. |
 | `-o`, `--output` | `Path` (folder or `.md` file) | `None` | Destination directory (e.g. `docs/`) or specific file path (e.g. `docs/system.md`). Required for directory input unless `--stdout` is set. |
 | `-r`, `--recursive` | `Flag` | `False` | Recursively scan subdirectories for `.TcPOU` files. Relative subfolder paths are flattened into filenames (e.g. `Motion--Axes--FB_Drive.md`). |
 | `-u`, `--unified` | `Flag` | `False` | Merges all converted POUs into a single Markdown document separated by horizontal dividers (`---`). |

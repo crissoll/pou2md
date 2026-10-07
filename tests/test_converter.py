@@ -320,6 +320,33 @@ class TestEndToEndConverter(unittest.TestCase):
             self.assertIn("# FB_Blinker", content)
             self.assertIn("# MAIN", content)
 
+    def test_cli_default_input(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_file = Path(tmp_dir) / "all_pous.md"
+            cmd = [
+                sys.executable,
+                "-m",
+                "tcpou_to_mermaid",
+                "-r",
+                "-u",
+                "-o",
+                str(out_file),
+            ]
+            result = subprocess.run(
+                cmd,
+                cwd=str(BASE_DIR / "POUs"),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue(out_file.exists())
+            content = out_file.read_text(encoding="utf-8")
+            self.assertIn("# FB_Blinker", content)
+            self.assertIn("# MAIN", content)
+
     def test_curve_and_bifurcation(self):
         # Test that stepAfter curve and bifurcation junction nodes are rendered
         conv = TcPOUConverter(curve="stepAfter", bifurcate=True)

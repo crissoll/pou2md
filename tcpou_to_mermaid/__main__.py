@@ -12,7 +12,9 @@ def main() -> int:
     )
     parser.add_argument(
         "input",
-        help="Path to a .TcPOU file or directory containing .TcPOU files.",
+        nargs="?",
+        default=".",
+        help="Path to a .TcPOU file or directory containing .TcPOU files (default: .).",
     )
     parser.add_argument(
         "-o",
