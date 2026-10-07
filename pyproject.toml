@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tcpou-to-mermaid"
+version = "0.1.0"
+description = "Convert TwinCAT 3 .TcPOU files into Mermaid diagrams in Markdown"
+readme = "tcpou_to_mermaid/README.md"
+requires-python = ">=3.10"
+
+[project.scripts]
+tcpou-to-mermaid = "tcpou_to_mermaid.__main__:main"
+tcpou_to_mermaid = "tcpou_to_mermaid.__main__:main"
+pou2md = "tcpou_to_mermaid.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["tcpou_to_mermaid*"]

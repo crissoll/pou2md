@@ -1,0 +1,4 @@
+[console_scripts]
+pou2md = tcpou_to_mermaid.__main__:main
+tcpou-to-mermaid = tcpou_to_mermaid.__main__:main
+tcpou_to_mermaid = tcpou_to_mermaid.__main__:main

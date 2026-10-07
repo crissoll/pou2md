@@ -1,0 +1,47 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TcPlcObject Version="1.1.0.1" ProductVersion="3.1.4024.16">
+  <POU Name="Simulation" Id="{77e87ae9-2b22-483e-88c6-272a8f859852}" SpecialFunc="None">
+    <Declaration><![CDATA[PROGRAM Simulation
+VAR
+    fbT1                 : TON;             //The temperature is decreased on a time delay, when the compressor has been activated
+    tCooling             : TIME := T#500MS; 
+    bReduceTemp          : BOOL;            //Signal for dereasing the temperature
+    fbT2                 : TON;             //The temperature is increased on a time delay, when the compressor has been activated 
+    tEnvironment         : TIME := T#2S;    //Delay time when the door is closed
+    tEnvironmentDoorOpen : TIME := T#1s;    //Delay time when the door is open
+    bRaiseTemp           : BOOL;            //Signal for increasing the temperature
+    tImTemp              : TIME;            //Delay time
+    nCounter             : INT;
+END_VAR]]></Declaration>
+    <Implementation>
+      <ST><![CDATA[
+
+// After the compressor has been activated due to fTempActual being too high, the temperature decreases.
+// The temperature is decremented by 0.1°C per cycle after a delay of P_Cooling
+IF GVL_VAR.bCompressor THEN
+    fbT1(IN:= GVL_Var.bCompressor, PT:= tCooling, Q=>bReduceTemp);
+    IF bReduceTemp THEN
+        GVL_Var.fTempActual := GVL_Var.fTempActual-0.1;
+        fbT1(IN:=FALSE);
+    END_IF
+END_IF
+
+//If the door is open, the warming will occur faster; SEL selects tEnvironmentDoorOpen
+tImTemp:=SEL(GVL_Var.bDoorOpen, tEnvironment, tEnvironmentDoorOpen);
+
+//If the compressor is not in operation, then the cooling chamber will become warmer.
+//The  temperature is incremented by 0.1°C per cycle after a delay of tImTemp
+fbT2(IN:= TRUE, PT:= tImTemp, Q=>bRaiseTemp);    
+IF bRaiseTemp THEN
+    GVL_Var.fTempActual := GVL_Var.fTempActual + 0.1;
+    fbT2(IN:=FALSE);
+END_IF
+
+nCounter := nCounter+1; // No function, just for demonstration purposes.]]></ST>
+    </Implementation>
+    <LineIds Name="Simulation">
+      <LineId Id="52" Count="22" />
+      <LineId Id="5" Count="0" />
+    </LineIds>
+  </POU>
+</TcPlcObject>
