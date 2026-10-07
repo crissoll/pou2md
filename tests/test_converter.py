@@ -329,6 +329,31 @@ class TestEndToEndConverter(unittest.TestCase):
 
             self.assertEqual(written, [out_dir / "foldera" / "folderb" / "SubSim.md"])
 
+    def test_exclude_patterns_and_atomic_output(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_dir = Path(tmp_dir) / "input"
+            output_dir = Path(tmp_dir) / "output"
+            input_dir.mkdir()
+            (input_dir / "Keep.TcPOU").write_text(
+                (POU_DIR / "Simulation.TcPOU").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            (input_dir / "Skip.TcPOU").write_text(
+                (POU_DIR / "Simulation.TcPOU").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+
+            written, _ = self.converter.convert_directory(
+                input_dir=input_dir,
+                output_dir=output_dir,
+                exclude=("Skip.TcPOU",),
+            )
+
+            self.assertEqual(written, [output_dir / "Keep.md"])
+            self.assertFalse(list(output_dir.glob("*.tmp")))
+
     def test_cli_recursive_and_unified(self):
         import tempfile
 

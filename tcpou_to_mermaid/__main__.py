@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+import logging
 import sys
 from pathlib import Path
 from .converter import TcPOUConverter
@@ -44,6 +45,19 @@ def main() -> int:
         help="Save individual Markdown files using the input folder structure instead of flattened names.",
     )
     parser.add_argument(
+        "--exclude",
+        action="append",
+        default=[],
+        metavar="PATTERN",
+        help="Exclude matching filename or relative path pattern; may be repeated.",
+    )
+    parser.add_argument("--poll-interval", type=float, default=1.0, help="Watcher polling interval in seconds.")
+    parser.add_argument("--debounce-delay", type=float, default=0.25, help="Delay after a detected change in seconds.")
+    parser.add_argument("--retry-count", type=int, default=3, help="Conversion attempts after a transient save failure.")
+    parser.add_argument("--retry-delay", type=float, default=0.5, help="Delay between conversion attempts in seconds.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable diagnostic logging.")
+    parser.add_argument("--quiet", action="store_true", help="Suppress normal status messages.")
+    parser.add_argument(
         "--stdout",
         action="store_true",
         help="Print Markdown output to stdout instead of saving to a file.",
@@ -77,6 +91,20 @@ def main() -> int:
     args = parser.parse_args()
     input_path = Path(args.input)
 
+    if args.quiet and args.verbose:
+        parser.error("--quiet and --verbose cannot be used together")
+    if args.poll_interval <= 0 or args.debounce_delay < 0 or args.retry_count < 1 or args.retry_delay < 0:
+        parser.error("watch timing values must be positive (debounce/retry delays may be zero)")
+    if input_path.is_dir() and args.copy_folder_structure and not args.recursive:
+        parser.error("--copy-folder-structure requires --recursive for directory input")
+    if input_path.is_dir() and args.stdout and not args.unified:
+        parser.error("--stdout for directory input requires --unified")
+
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else (logging.ERROR if args.quiet else logging.INFO),
+        format="[%(levelname)s] %(message)s",
+    )
+
     if not input_path.exists():
         print(f"Error: Path '{input_path}' does not exist.", file=sys.stderr)
         return 1
@@ -106,6 +134,12 @@ def main() -> int:
             single_folder=(not args.unified) or args.single_folder or args.copy_folder_structure,
             copy_folder_structure=args.copy_folder_structure,
             to_stdout=args.stdout or (input_path.is_file() and not args.output),
+            poll_interval=args.poll_interval,
+            debounce_delay=args.debounce_delay,
+            retry_count=args.retry_count,
+            retry_delay=args.retry_delay,
+            exclude=tuple(args.exclude),
+            quiet=args.quiet,
         )
 
     if input_path.is_file():
@@ -117,7 +151,7 @@ def main() -> int:
             if hasattr(sys.stdout, "reconfigure"):
                 sys.stdout.reconfigure(encoding="utf-8")
             print(md_text)
-        else:
+        elif not args.quiet:
             print(f"Generated: {out_file}")
 
     elif input_path.is_dir():
@@ -135,6 +169,7 @@ def main() -> int:
             unified=args.unified,
             single_folder=(not args.unified) or args.single_folder or args.copy_folder_structure,
             copy_folder_structure=args.copy_folder_structure,
+            exclude=tuple(args.exclude),
         )
 
         if args.stdout or (args.unified and not args.output):
@@ -142,7 +177,7 @@ def main() -> int:
                 sys.stdout.reconfigure(encoding="utf-8")
             if unified_text:
                 print(unified_text)
-        else:
+        elif not args.quiet:
             if args.unified and written:
                 print(f"Generated {len(written)} output file(s).")
             else:

@@ -79,11 +79,18 @@ pou2md [input] [-o OUTPUT] [-r] [-u] [--single-folder] [--copy-folder-structure]
 | `-u`, `--unified` | `Flag` | `False` | Merges all converted POUs into a single Markdown document separated by horizontal dividers (`---`). |
 | `--single-folder` | `Flag` | Automatic | Also generate individual Markdown files. This is enabled by default unless `--unified` is used alone. |
 | `--copy-folder-structure` | `Flag` | `False` | Generate individual Markdown files under matching source subdirectories instead of flattened names. Also enables individual output. |
+| `--exclude PATTERN` | `Pattern` | None | Exclude matching filenames or relative paths; repeat the option for multiple patterns. |
 | `--stdout` | `Flag` | `False` | Prints generated Markdown directly to `stdout` instead of writing to disk. |
 | `--curve` | `step` \| `stepAfter` \| `linear` \| `basis` \| `none` | `step` | Mermaid flowchart wire routing style. `step` generates orthogonal right-angle wires entering blocks horizontally (`>`). |
 | `--no-bifurcate` | `Flag` | *(Bifurcation enabled)* | Disables bifurcation junction nodes (`(( ))`), drawing independent wires from the source pin to each destination pin. |
 | `--repeat-inputs` | `Flag` | `False` | In CFC diagrams, duplicates input variable blocks next to each connected pin to eliminate long cross-sheet wires. |
 | `-w`, `--watch` | `Flag` | `False` | Continuously watches the input file or directory and regenerates Markdown after changes. Press `Ctrl+C` to stop. |
+| `--poll-interval` | Seconds | `1.0` | Watcher polling interval. |
+| `--debounce-delay` | Seconds | `0.25` | Delay after a detected change before conversion. |
+| `--retry-count` | Integer | `3` | Conversion attempts for transient save or network errors. |
+| `--retry-delay` | Seconds | `0.5` | Delay between conversion attempts. |
+| `-v`, `--verbose` | `Flag` | `False` | Enable diagnostic logging. |
+| `--quiet` | `Flag` | `False` | Suppress normal status messages while preserving errors. |
 | `-h`, `--help` | `Flag` | - | Display CLI help message and exit. |
 
 ---
@@ -154,6 +161,18 @@ Parsing errors are reported to `stderr` and do not terminate the watcher. This
 allows editors to save an incomplete XML document temporarily: the watcher
 waits and retries that file after the next change. The same behavior applies to
 an incomplete file present when the watcher starts.
+
+Generated Markdown is written through a temporary sibling file and atomically
+replaced into place, preventing readers from seeing partially written output.
+Use `--exclude` to ignore backup or generated sources, for example:
+
+```bash
+pou2md MyPlcProject/ -r -w -o docs/ --exclude "Backup/*" --exclude "*_old.TcPOU"
+```
+
+Use `--verbose` for diagnostic status logging or `--quiet` to suppress normal
+status messages while retaining errors. Watcher timing can be tuned with
+`--poll-interval`, `--debounce-delay`, `--retry-count`, and `--retry-delay`.
 
 ---
 

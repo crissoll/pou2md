@@ -1,5 +1,7 @@
 from __future__ import annotations
 import os
+import fnmatch
+import logging
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -10,6 +12,25 @@ from .parser.nwl_parser import NWLParser
 from .parser.cfc_parser import CFCParser
 from .parser.st_parser import STParser
 from .writer.markdown import MarkdownWriter
+
+LOGGER = logging.getLogger(__name__)
+
+
+def _atomic_write(path: Path, content: str) -> None:
+    """Write content through a sibling temporary file, then replace the target."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with open(temporary, "w", encoding="utf-8", newline="") as f:
+            f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(temporary, path)
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            LOGGER.debug("Could not remove temporary output %s", temporary, exc_info=True)
 
 
 def _read_file_with_retry(path: Path, max_retries: int = 3, delay: float = 0.1) -> str:
@@ -99,8 +120,7 @@ class TcPOUConverter:
                 out_path = out_target / fname
                 out_path.parent.mkdir(parents=True, exist_ok=True)
 
-            with open(out_path, "w", encoding="utf-8") as f:
-                f.write(md_output)
+            _atomic_write(out_path, md_output)
 
         return md_output, out_path
 
@@ -112,6 +132,7 @@ class TcPOUConverter:
         unified: bool = False,
         single_folder: bool | None = None,
         copy_folder_structure: bool = False,
+        exclude: tuple[str, ...] = (),
         unified_filename: str = "unified.md",
     ) -> tuple[list[Path], str | None]:
         """
@@ -124,6 +145,7 @@ class TcPOUConverter:
             unified: If True, combine all converted POUs into a single Markdown document.
             single_folder: If True, write individual Markdown files.
             copy_folder_structure: If True, preserve source subdirectories for individual files.
+            exclude: Filename or relative-path patterns to skip.
             unified_filename: Default filename if output_dir is a directory when unified=True.
 
         Returns:
@@ -135,7 +157,12 @@ class TcPOUConverter:
         in_dir = Path(input_dir)
         candidates = in_dir.rglob("*") if recursive else in_dir.iterdir()
         pou_files = sorted(
-            (path for path in candidates if path.is_file() and path.suffix.lower() == ".tcpou"),
+            (
+                path for path in candidates
+                if path.is_file()
+                and path.suffix.lower() == ".tcpou"
+                and not _is_excluded(path, in_dir, exclude)
+            ),
             key=lambda path: str(path).lower(),
         )
 
@@ -159,8 +186,7 @@ class TcPOUConverter:
                     out_target.mkdir(parents=True, exist_ok=True)
                     out_path = out_target / unified_filename
 
-                with open(out_path, "w", encoding="utf-8") as f:
-                    f.write(unified_text)
+                _atomic_write(out_path, unified_text)
                 written_files.append(out_path)
 
         if single_folder:
@@ -191,3 +217,13 @@ class TcPOUConverter:
             written_files.extend(individual_files)
 
         return written_files, unified_text
+
+
+def _is_excluded(path: Path, root: Path, patterns: tuple[str, ...]) -> bool:
+    relative = path.relative_to(root)
+    candidates = (path.name, str(relative), relative.as_posix())
+    return any(
+        fnmatch.fnmatch(candidate, pattern)
+        for pattern in patterns
+        for candidate in candidates
+    )

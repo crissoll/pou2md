@@ -1,10 +1,19 @@
 from __future__ import annotations
 import os
+import fnmatch
+import logging
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from .converter import TcPOUConverter
+
+LOGGER = logging.getLogger(__name__)
+
+
+def _status(message: str, quiet: bool) -> None:
+    if not quiet:
+        LOGGER.info(message)
 
 
 def is_process_running(pid: int) -> bool:
@@ -44,10 +53,9 @@ class LockGuard:
                     pid = 0
 
                 if pid != os.getpid() and is_process_running(pid):
-                    print(
+                    LOGGER.error(
                         f"[pou2md] Another watcher is already active for this target (PID {pid}).\n"
                         f"To stop it, press Ctrl+C in that terminal or terminate that process.",
-                        file=sys.stderr,
                     )
                     return False
 
@@ -60,10 +68,10 @@ class LockGuard:
                 except OSError:
                     pass
             except OSError as e:
-                print(f"[pou2md] Failed to create lock file '{self.lock_path}': {e}", file=sys.stderr)
+                LOGGER.error("[pou2md] Failed to create lock file '%s': %s", self.lock_path, e)
                 return False
 
-        print(f"[pou2md] Failed to acquire lock file '{self.lock_path}'.", file=sys.stderr)
+        LOGGER.error("[pou2md] Failed to acquire lock file '%s'.", self.lock_path)
         return False
 
     def release(self) -> None:
@@ -86,7 +94,11 @@ def _get_lock_path(input_path: Path, output: str | None) -> Path:
     return input_path.parent / f".{input_path.name}.lock"
 
 
-def _scan_files(input_path: Path, recursive: bool) -> dict[Path, tuple[int, int]]:
+def _scan_files(
+    input_path: Path,
+    recursive: bool,
+    exclude: tuple[str, ...] = (),
+) -> dict[Path, tuple[int, int]]:
     snapshot: dict[Path, tuple[int, int]] = {}
     if input_path.is_file():
         if input_path.suffix.lower() == ".tcpou" and input_path.exists():
@@ -100,6 +112,13 @@ def _scan_files(input_path: Path, recursive: bool) -> dict[Path, tuple[int, int]
             candidates = input_path.rglob("*") if recursive else input_path.iterdir()
             for p in candidates:
                 if not p.is_file() or p.suffix.lower() != ".tcpou":
+                    continue
+                relative = p.relative_to(input_path)
+                if any(
+                    fnmatch.fnmatch(candidate, pattern)
+                    for pattern in exclude
+                    for candidate in (p.name, str(relative), relative.as_posix())
+                ):
                     continue
                 try:
                     stat = p.stat()
@@ -123,6 +142,10 @@ def start_watcher(
     to_stdout: bool = False,
     poll_interval: float = 1.0,
     debounce_delay: float = 0.25,
+    retry_count: int = 3,
+    retry_delay: float = 0.5,
+    exclude: tuple[str, ...] = (),
+    quiet: bool = False,
 ) -> int:
     """
     Watch input file or directory for changes and automatically re-convert.
@@ -151,7 +174,7 @@ def start_watcher(
                         sys.stdout.reconfigure(encoding="utf-8")
                     print(md_text)
                 elif out_file:
-                    print(f"[pou2md] Initial build: {out_file}")
+                    _status(f"[pou2md] Initial build: {out_file}", quiet)
             elif input_path.is_dir():
                 written, unified_text = converter.convert_directory(
                     input_dir=input_path,
@@ -160,30 +183,36 @@ def start_watcher(
                     unified=unified,
                     single_folder=single_folder,
                     copy_folder_structure=copy_folder_structure,
+                    exclude=exclude,
                 )
                 if to_stdout and unified_text:
                     if hasattr(sys.stdout, "reconfigure"):
                         sys.stdout.reconfigure(encoding="utf-8")
                     print(unified_text)
                 elif unified and written:
-                    print(f"[pou2md] Initial build: Unified into {written[0]}")
+                    _status(f"[pou2md] Initial build: Unified into {written[0]}", quiet)
                 elif written:
-                    print(f"[pou2md] Initial build: Converted {len(written)} POU file(s) to '{output}'.")
+                    _status(
+                        f"[pou2md] Initial build: Converted {len(written)} POU file(s) to '{output}'.",
+                        quiet,
+                    )
         except Exception as e:
-            print(
+            LOGGER.error(
                 f"[pou2md] Initial build failed: {e}. "
                 "Waiting for a complete file before retrying.",
-                file=sys.stderr,
             )
 
         target_desc = str(output) if output else ("stdout" if to_stdout else str(input_path))
-        print(f"[pou2md] Watching '{input_path}' (target: {target_desc})... Press Ctrl+C to stop.")
+        _status(
+            f"[pou2md] Watching '{input_path}' (target: {target_desc})... Press Ctrl+C to stop.",
+            quiet,
+        )
 
-        current_snapshot = _scan_files(input_path, recursive)
+        current_snapshot = _scan_files(input_path, recursive, exclude)
 
         while True:
             time.sleep(poll_interval)
-            new_snapshot = _scan_files(input_path, recursive)
+            new_snapshot = _scan_files(input_path, recursive, exclude)
 
             changed = [
                 p for p, mtime in new_snapshot.items()
@@ -197,7 +226,7 @@ def start_watcher(
 
             # Debounce to allow multi-step editor writes to finish
             time.sleep(debounce_delay)
-            stabilized_snapshot = _scan_files(input_path, recursive)
+            stabilized_snapshot = _scan_files(input_path, recursive, exclude)
             previous_snapshot = current_snapshot
             current_snapshot = stabilized_snapshot
 
@@ -205,19 +234,27 @@ def start_watcher(
 
             if unified:
                 try:
-                    written, unified_text = converter.convert_directory(
-                        input_dir=input_path,
-                        output_dir=output if not to_stdout else None,
-                        recursive=recursive,
-                        unified=True,
-                        single_folder=False,
-                    )
+                    for attempt in range(retry_count):
+                        try:
+                            written, unified_text = converter.convert_directory(
+                                input_dir=input_path,
+                                output_dir=output if not to_stdout else None,
+                                recursive=recursive,
+                                unified=True,
+                                single_folder=False,
+                                exclude=exclude,
+                            )
+                            break
+                        except Exception:
+                            if attempt == retry_count - 1:
+                                raise
+                            time.sleep(retry_delay)
                     if to_stdout and unified_text:
                         print(unified_text)
                     elif written:
-                        print(f"[{now}] Detected changes -> Updated unified file: {written[0].name}")
+                        _status(f"[{now}] Detected changes -> Updated unified file: {written[0].name}", quiet)
                 except Exception as e:
-                    print(f"[{now}] Error updating unified document: {e}", file=sys.stderr)
+                    LOGGER.error("[%s] Error updating unified document: %s", now, e)
                     current_snapshot = previous_snapshot
             if single_folder:
                 failed = set()
@@ -235,19 +272,31 @@ def start_watcher(
                         else:
                             custom_filename = f"{p.stem}.md"
 
-                        md_text, out_file = converter.convert_file(
-                            p,
-                            output_dir=output if not to_stdout else None,
-                            custom_filename=custom_filename,
-                        )
+                        for attempt in range(retry_count):
+                            try:
+                                md_text, out_file = converter.convert_file(
+                                    p,
+                                    output_dir=output if not to_stdout else None,
+                                    custom_filename=custom_filename,
+                                )
+                                break
+                            except Exception:
+                                if attempt == retry_count - 1:
+                                    raise
+                                time.sleep(retry_delay)
                         if to_stdout:
                             print(md_text)
                         elif out_file:
                             label = "Added" if p in added else "Updated"
-                            print(f"[{now}] {label} '{p.name}' -> Generated: {out_file.name}")
+                            _status(f"[{now}] {label} '{p.name}' -> Generated: {out_file.name}", quiet)
                     except Exception as e:
                         failed.add(p)
-                        print(f"[{now}] Error compiling '{p.name}': {e}. Waiting for next change...", file=sys.stderr)
+                        LOGGER.error(
+                            "[%s] Error compiling '%s': %s. Waiting for next change...",
+                            now,
+                            p.name,
+                            e,
+                        )
 
                 for p in failed:
                     if p in previous_snapshot:
@@ -274,13 +323,13 @@ def start_watcher(
                         target_md = out_dir / fname
                         if target_md.exists():
                             target_md.unlink(missing_ok=True)
-                            print(f"[{now}] Removed '{p.name}' -> Deleted: {target_md.name}")
+                            _status(f"[{now}] Removed '{p.name}' -> Deleted: {target_md.name}", quiet)
 
     except KeyboardInterrupt:
-        print("\n[pou2md] Stopped watching. Bye!")
+        _status("\n[pou2md] Stopped watching. Bye!", quiet)
         return 0
     except Exception as e:
-        print(f"[pou2md] Watcher stopped unexpectedly: {e}", file=sys.stderr)
+        LOGGER.exception("[pou2md] Watcher stopped unexpectedly: %s", e)
         return 1
     finally:
         lock.release()

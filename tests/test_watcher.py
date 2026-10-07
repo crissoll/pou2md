@@ -85,6 +85,17 @@ class TestWatcher(unittest.TestCase):
 
         self.assertNotEqual(before[pou], after[pou])
 
+    def test_scan_files_applies_exclusions(self):
+        keep = self.test_dir / "Keep.TcPOU"
+        skip = self.test_dir / "Skip.TcPOU"
+        keep.write_text("<TcPou/>", encoding="utf-8")
+        skip.write_text("<TcPou/>", encoding="utf-8")
+
+        snapshot = _scan_files(self.test_dir, recursive=False, exclude=("Skip.TcPOU",))
+
+        self.assertIn(keep, snapshot)
+        self.assertNotIn(skip, snapshot)
+
     def test_get_lock_path(self):
         # When output directory is specified
         p1 = _get_lock_path(self.test_dir, output=str(self.test_dir / "out"))
