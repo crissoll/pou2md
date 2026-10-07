@@ -32,3 +32,8 @@ Thumbs.db
 
 # Project-specific / local assets
 /Images
+# pou2md generated state
+.pou2md-manifest.json
+.pou2md.lock
+.*.lock
+*.tmp

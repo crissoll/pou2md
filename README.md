@@ -94,6 +94,8 @@ pou2md [input] [-o OUTPUT] [-r] [-u] [--single-folder] [--copy-folder-structure]
 | `--log-format` | `text` \| `json` | `text` | Select human-readable or machine-readable logs. |
 | `--dry-run` | `Flag` | `False` | Show planned outputs without writing Markdown or a manifest. |
 | `--clean` | `Flag` | `False` | Remove stale outputs previously recorded in the output manifest. Requires `-o`. |
+| `--config FILE` | TOML file | None | Load default arguments from a project configuration file. Command-line values override config values. |
+| `--version` | `Flag` | - | Print the installed package version. |
 | `-h`, `--help` | `Flag` | - | Display CLI help message and exit. |
 
 ---
@@ -199,6 +201,32 @@ Use JSON logs for automation:
 ```bash
 pou2md MyPlcProject/ -r -w -o docs/ --log-format json
 ```
+
+## Project configuration
+
+Arguments can be saved in a committed `pou2md.toml` file:
+
+```toml
+input = "POUs"
+output = "docs"
+recursive = true
+unified = true
+copy_folder_structure = true
+exclude = ["Backup/*"]
+```
+
+Run it with:
+
+```bash
+pou2md --config pou2md.toml
+```
+
+Built-in defaults are overridden by the TOML file, and explicit command-line
+arguments override the TOML values.
+
+Use `pou2md --version` when reporting issues so the exact installed converter
+version is known. Invalid XML errors include the source filename and XML
+location, while the watcher preserves the last valid output.
 
 ---
 

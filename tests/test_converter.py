@@ -11,6 +11,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from tcpou_to_mermaid.converter import TcPOUConverter
+from tcpou_to_mermaid.errors import TcPOUParseError
+from tcpou_to_mermaid.manifest import load_manifest, manifest_path, save_manifest
 from tcpou_to_mermaid.parser.cfc_parser import CFCParser
 from tcpou_to_mermaid.parser.declaration import DeclarationParser
 from tcpou_to_mermaid.parser.nwl_parser import NWLParser
@@ -366,6 +368,60 @@ class TestEndToEndConverter(unittest.TestCase):
 
             self.assertEqual(len(written), 4)
             self.assertFalse(output_dir.exists())
+
+    def test_parse_error_contains_filename_and_location(self):
+        with self.assertRaisesRegex(TcPOUParseError, r"broken\.TcPOU.*line"):
+            self.converter.convert_content("<TcPou><broken></TcPou>", "broken.TcPOU")
+
+    def test_cli_config_and_version(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config = Path(tmp_dir) / "pou2md.toml"
+            output = Path(tmp_dir) / "docs"
+            config.write_text(
+                f'input = "{POU_DIR.as_posix()}"\n'
+                f'output = "{output.as_posix()}"\n'
+                "unified = true\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, "-m", "tcpou_to_mermaid", "--config", str(config), "--quiet"],
+                cwd=str(BASE_DIR),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue((output / "unified.md").exists())
+
+            version_result = subprocess.run(
+                [sys.executable, "-m", "tcpou_to_mermaid", "--version"],
+                cwd=str(BASE_DIR),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                check=False,
+            )
+            self.assertEqual(version_result.returncode, 0)
+            self.assertRegex(version_result.stdout.strip(), r"\d+\.\d+\.\d+")
+
+    def test_manifest_records_outputs_and_metadata(self):
+        import json
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir) / "output"
+            written, _ = self.converter.convert_directory(
+                input_dir=POU_DIR,
+                output_dir=output_dir,
+            )
+            path = manifest_path(output_dir)
+            save_manifest(path, written, metadata={"test": True})
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["metadata"]["test"], True)
+            self.assertEqual(load_manifest(path), {item.resolve() for item in written})
 
     def test_cli_recursive_and_unified(self):
         import tempfile

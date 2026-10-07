@@ -4,10 +4,16 @@ import argparse
 import json
 import logging
 import sys
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
+    import tomli as tomllib
 
 from .converter import TcPOUConverter
 from .manifest import clean_stale_outputs, manifest_path, save_manifest
+from .errors import TcPOUError
 
 
 class _JsonFormatter(logging.Formatter):
@@ -30,6 +36,8 @@ def main() -> int:
         default=".",
         help="Path to a .TcPOU file or directory containing .TcPOU files (default: .).",
     )
+    parser.add_argument("--config", type=Path, help="Load defaults from a TOML configuration file.")
+    parser.add_argument("--version", action="version", version=_package_version())
     parser.add_argument(
         "-o",
         "--output",
@@ -104,6 +112,16 @@ def main() -> int:
         help="Watch input file or directory for changes and automatically re-convert.",
     )
 
+    preliminary = argparse.ArgumentParser(add_help=False)
+    preliminary.add_argument("--config", type=Path)
+    preliminary_args, _ = preliminary.parse_known_args()
+    if preliminary_args.config:
+        try:
+            config = tomllib.loads(preliminary_args.config.read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError) as error:
+            parser.error(f"could not load config '{preliminary_args.config}': {error}")
+        parser.set_defaults(**_config_defaults(config))
+
     args = parser.parse_args()
     input_path = Path(args.input)
 
@@ -132,6 +150,9 @@ def main() -> int:
     if not input_path.exists():
         print(f"Error: Path '{input_path}' does not exist.", file=sys.stderr)
         return 1
+    validation_error = _validate_paths(input_path, args)
+    if validation_error:
+        parser.error(validation_error)
 
     curve_setting = None if args.curve == "none" else args.curve
     converter = TcPOUConverter(
@@ -166,66 +187,102 @@ def main() -> int:
             quiet=args.quiet,
         )
 
-    if input_path.is_file():
-        md_text, out_file = converter.convert_file(
-            input_path,
-            output_dir=args.output if not args.stdout else None,
-        )
-        if args.stdout or not args.output:
-            if hasattr(sys.stdout, "reconfigure"):
-                sys.stdout.reconfigure(encoding="utf-8")
-            print(md_text)
-        elif not args.quiet:
-            print(f"Generated: {out_file}")
-
-    elif input_path.is_dir():
-        if not args.output and not args.stdout:
-            print(
-                "Error: Please specify an output target with -o / --output, or use --stdout.",
-                file=sys.stderr,
+    try:
+        if input_path.is_file():
+            md_text, out_file = converter.convert_file(
+                input_path,
+                output_dir=args.output if not args.stdout else None,
             )
-            return 1
+        elif input_path.is_dir():
+            if not args.output and not args.stdout:
+                parser.error("Please specify an output target with -o / --output, or use --stdout.")
 
-        written, unified_text = converter.convert_directory(
-            input_dir=input_path,
-            output_dir=args.output if not args.stdout else None,
-            recursive=args.recursive,
-            unified=args.unified,
-            single_folder=(not args.unified) or args.single_folder or args.copy_folder_structure,
-            copy_folder_structure=args.copy_folder_structure,
-            exclude=tuple(args.exclude),
-            dry_run=args.dry_run,
-        )
+            written, unified_text = converter.convert_directory(
+                input_dir=input_path,
+                output_dir=args.output if not args.stdout else None,
+                recursive=args.recursive,
+                unified=args.unified,
+                single_folder=(not args.unified) or args.single_folder or args.copy_folder_structure,
+                copy_folder_structure=args.copy_folder_structure,
+                exclude=tuple(args.exclude),
+                dry_run=args.dry_run,
+            )
 
-        if args.output:
-            manifest = manifest_path(args.output)
-            current_outputs = set(written)
-            stale = clean_stale_outputs(manifest, current_outputs, dry_run=args.dry_run) if args.clean else []
-            if args.clean and not args.dry_run or not args.dry_run:
-                save_manifest(manifest, current_outputs)
-        else:
-            stale = []
-
-        if args.dry_run:
-            for path in written:
-                print(f"Would generate: {path}")
-            for path in stale:
-                print(f"Would remove: {path}")
-
-        if args.stdout or (args.unified and not args.output):
-            if hasattr(sys.stdout, "reconfigure"):
-                sys.stdout.reconfigure(encoding="utf-8")
-            if unified_text:
-                print(unified_text)
-        elif not args.quiet:
-            if args.unified and written:
-                print(f"Generated {len(written)} output file(s).")
+            if args.output:
+                manifest = manifest_path(args.output)
+                current_outputs = set(written)
+                stale = clean_stale_outputs(manifest, current_outputs, dry_run=args.dry_run) if args.clean else []
+                if not args.dry_run:
+                    save_manifest(manifest, current_outputs, metadata=_manifest_metadata(args))
             else:
-                print(f"Converted {len(written)} POU file(s) to '{args.output}'.")
-                for f in written:
-                    print(f"  - {f.name}")
+                stale = []
+
+            if args.dry_run:
+                for path in written:
+                    print(f"Would generate: {path}")
+                for path in stale:
+                    print(f"Would remove: {path}")
+            elif args.stdout or (args.unified and not args.output):
+                if hasattr(sys.stdout, "reconfigure"):
+                    sys.stdout.reconfigure(encoding="utf-8")
+                if unified_text:
+                    print(unified_text)
+            elif not args.quiet:
+                print(f"Generated {len(written)} output file(s).")
+            return 0
+    except TcPOUError as error:
+        logging.getLogger(__name__).error("%s", error)
+        return 1
+    if args.stdout or not args.output:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+        print(md_text)
+    elif not args.quiet:
+        print(f"Generated: {out_file}")
 
     return 0
+
+
+def _package_version() -> str:
+    try:
+        return version("tcpou-to-mermaid")
+    except PackageNotFoundError:
+        return "0.1.0"
+
+
+def _config_defaults(config: dict[str, object]) -> dict[str, object]:
+    allowed = {
+        "input", "output", "recursive", "unified", "single_folder",
+        "copy_folder_structure", "exclude", "poll_interval", "debounce_delay",
+        "retry_count", "retry_delay", "verbose", "quiet", "log_format",
+        "dry_run", "clean", "stdout", "curve", "bifurcate", "repeat_inputs", "watch",
+    }
+    return {key: value for key, value in config.items() if key in allowed}
+
+
+def _manifest_metadata(args: argparse.Namespace) -> dict[str, object]:
+    return {
+        "version": _package_version(),
+        "recursive": args.recursive,
+        "unified": args.unified,
+        "single_folder": (not args.unified) or args.single_folder or args.copy_folder_structure,
+        "copy_folder_structure": args.copy_folder_structure,
+        "exclude": args.exclude,
+    }
+
+
+def _validate_paths(input_path: Path, args: argparse.Namespace) -> str | None:
+    if not args.output:
+        return None
+    output = Path(args.output).resolve()
+    source = input_path.resolve()
+    if input_path.is_file() and output == source:
+        return "output path cannot overwrite the input .TcPOU file"
+    if input_path.is_dir() and output == source:
+        return "output directory cannot be the input directory"
+    if input_path.is_dir() and source in output.parents:
+        return "output directory cannot be inside the input directory"
+    return None
 
 
 if __name__ == "__main__":

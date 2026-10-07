@@ -13,6 +13,7 @@ from .parser.declaration import DeclarationParser
 from .parser.nwl_parser import NWLParser
 from .parser.st_parser import STParser
 from .writer.markdown import MarkdownWriter
+from .errors import TcPOUInputError, TcPOUOutputError, TcPOUParseError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -65,7 +66,10 @@ class TcPOUConverter:
 
     def convert_content(self, xml_content: str, filename: str = "POU.TcPOU") -> str:
         """Parse XML string content and return generated Markdown text."""
-        root = ET.fromstring(xml_content)
+        try:
+            root = ET.fromstring(xml_content)
+        except ET.ParseError as error:
+            raise TcPOUParseError(filename, error) from error
 
         # 1. Declaration
         decl_elem = root.find(".//Declaration")
@@ -106,7 +110,10 @@ class TcPOUConverter:
     ) -> tuple[str, Path | None]:
         """Convert a single .TcPOU file, optionally writing to an output directory."""
         path = Path(file_path)
-        content = _read_file_with_retry(path)
+        try:
+            content = _read_file_with_retry(path)
+        except OSError as error:
+            raise TcPOUInputError(f"could not read '{path}': {error}") from error
 
         md_output = self.convert_content(content, filename=path.name)
 
@@ -126,7 +133,10 @@ class TcPOUConverter:
                     out_path.parent.mkdir(parents=True, exist_ok=True)
 
             if not dry_run:
-                _atomic_write(out_path, md_output)
+                try:
+                    _atomic_write(out_path, md_output)
+                except OSError as error:
+                    raise TcPOUOutputError(f"could not write '{out_path}': {error}") from error
 
         return md_output, out_path
 
@@ -196,7 +206,10 @@ class TcPOUConverter:
                     out_path = out_target / unified_filename
 
                 if not dry_run:
-                    _atomic_write(out_path, unified_text)
+                    try:
+                        _atomic_write(out_path, unified_text)
+                    except OSError as error:
+                        raise TcPOUOutputError(f"could not write '{out_path}': {error}") from error
                 written_files.append(out_path)
 
         if single_folder:

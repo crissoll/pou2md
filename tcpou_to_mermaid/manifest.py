@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import datetime, timezone
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -27,7 +28,12 @@ def load_manifest(path: Path) -> set[Path]:
         return set()
 
 
-def save_manifest(path: Path, outputs: Iterable[Path], dry_run: bool = False) -> None:
+def save_manifest(
+    path: Path,
+    outputs: Iterable[Path],
+    dry_run: bool = False,
+    metadata: dict[str, object] | None = None,
+) -> None:
     if dry_run:
         return
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -37,7 +43,12 @@ def save_manifest(path: Path, outputs: Iterable[Path], dry_run: bool = False) ->
         for output in outputs
         if output.resolve() != path.resolve() and root in output.resolve().parents
     )
-    payload = {"version": 1, "outputs": relative_outputs}
+    payload = {
+        "version": 2,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "outputs": relative_outputs,
+        "metadata": metadata or {},
+    }
     temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
     try:
         temporary.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -55,4 +66,9 @@ def clean_stale_outputs(manifest: Path, current_outputs: set[Path], dry_run: boo
             except OSError:
                 continue
         save_manifest(manifest, current_outputs)
+        for parent in sorted({output.parent for output in stale}, reverse=True):
+            try:
+                parent.rmdir()
+            except OSError:
+                pass
     return stale

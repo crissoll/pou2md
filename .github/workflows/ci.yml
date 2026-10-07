@@ -37,6 +37,7 @@ jobs:
       - name: Test CLI entry points
         run: |
           pou2md --help
+          pou2md --version
           python -m tcpou_to_mermaid --help
 
       - name: Compile sources
