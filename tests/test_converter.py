@@ -292,6 +292,43 @@ class TestEndToEndConverter(unittest.TestCase):
             self.assertIn("# Simulation", unified_text)
             self.assertIn("---", unified_text)
 
+    def test_unified_and_individual_conversion(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            out_dir = Path(tmp_dir) / "output"
+            written, unified_text = self.converter.convert_directory(
+                input_dir=POU_DIR,
+                output_dir=out_dir,
+                unified=True,
+                single_folder=True,
+            )
+
+            self.assertEqual(len(written), 5)
+            self.assertEqual(written[0], out_dir / "unified.md")
+            self.assertTrue((out_dir / "FB_Blinker.md").exists())
+            self.assertIn("# MAIN", unified_text)
+
+    def test_recursive_copy_folder_structure(self):
+        import tempfile
+        import shutil
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            nested_dir = tmp_path / "foldera" / "folderb"
+            nested_dir.mkdir(parents=True)
+            shutil.copy(POU_DIR / "Simulation.TcPOU", nested_dir / "SubSim.TcPOU")
+
+            out_dir = tmp_path / "output"
+            written, _ = self.converter.convert_directory(
+                input_dir=tmp_path,
+                output_dir=out_dir,
+                recursive=True,
+                copy_folder_structure=True,
+            )
+
+            self.assertEqual(written, [out_dir / "foldera" / "folderb" / "SubSim.md"])
+
     def test_cli_recursive_and_unified(self):
         import tempfile
 

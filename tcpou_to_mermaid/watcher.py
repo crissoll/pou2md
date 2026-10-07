@@ -118,6 +118,8 @@ def start_watcher(
     output: str | None = None,
     recursive: bool = False,
     unified: bool = False,
+    single_folder: bool = True,
+    copy_folder_structure: bool = False,
     to_stdout: bool = False,
     poll_interval: float = 1.0,
     debounce_delay: float = 0.25,
@@ -156,6 +158,8 @@ def start_watcher(
                     output_dir=output if not to_stdout else None,
                     recursive=recursive,
                     unified=unified,
+                    single_folder=single_folder,
+                    copy_folder_structure=copy_folder_structure,
                 )
                 if to_stdout and unified_text:
                     if hasattr(sys.stdout, "reconfigure"):
@@ -206,6 +210,7 @@ def start_watcher(
                         output_dir=output if not to_stdout else None,
                         recursive=recursive,
                         unified=True,
+                        single_folder=False,
                     )
                     if to_stdout and unified_text:
                         print(unified_text)
@@ -214,11 +219,14 @@ def start_watcher(
                 except Exception as e:
                     print(f"[{now}] Error updating unified document: {e}", file=sys.stderr)
                     current_snapshot = previous_snapshot
-            else:
+            if single_folder:
                 failed = set()
                 for p in changed + added:
                     try:
-                        if input_path.is_dir() and recursive:
+                        if input_path.is_dir() and recursive and copy_folder_structure:
+                            rel = p.relative_to(input_path)
+                            custom_filename = str(rel.with_suffix(".md"))
+                        elif input_path.is_dir() and recursive:
                             rel = p.relative_to(input_path)
                             if rel.parent.parts:
                                 custom_filename = "--".join(list(rel.parent.parts) + [p.stem]) + ".md"
@@ -247,10 +255,15 @@ def start_watcher(
                     else:
                         current_snapshot.pop(p, None)
 
-                if removed and output and not to_stdout and Path(output).suffix.lower() != ".md":
+                if removed and output and not to_stdout:
                     out_dir = Path(output)
+                    if out_dir.suffix.lower() == ".md":
+                        out_dir = out_dir.parent
                     for p in removed:
-                        if input_path.is_dir() and recursive:
+                        if input_path.is_dir() and recursive and copy_folder_structure:
+                            rel = p.relative_to(input_path)
+                            fname = str(rel.with_suffix(".md"))
+                        elif input_path.is_dir() and recursive:
                             rel = p.relative_to(input_path)
                             if rel.parent.parts:
                                 fname = "--".join(list(rel.parent.parts) + [p.stem]) + ".md"

@@ -97,6 +97,7 @@ class TcPOUConverter:
                 out_target.mkdir(parents=True, exist_ok=True)
                 fname = custom_filename if custom_filename else f"{path.stem}.md"
                 out_path = out_target / fname
+                out_path.parent.mkdir(parents=True, exist_ok=True)
 
             with open(out_path, "w", encoding="utf-8") as f:
                 f.write(md_output)
@@ -109,6 +110,8 @@ class TcPOUConverter:
         output_dir: Path | str | None = None,
         recursive: bool = False,
         unified: bool = False,
+        single_folder: bool | None = None,
+        copy_folder_structure: bool = False,
         unified_filename: str = "unified.md",
     ) -> tuple[list[Path], str | None]:
         """
@@ -117,19 +120,27 @@ class TcPOUConverter:
         Parameters:
             input_dir: Root directory to scan for .TcPOU files.
             output_dir: Destination directory or file path for outputs.
-            recursive: If True, search subdirectories and save flat names as 'foldera--folderb--file.md'.
+            recursive: If True, search subdirectories.
             unified: If True, combine all converted POUs into a single Markdown document.
+            single_folder: If True, write individual Markdown files.
+            copy_folder_structure: If True, preserve source subdirectories for individual files.
             unified_filename: Default filename if output_dir is a directory when unified=True.
 
         Returns:
             A tuple of (written_file_paths, unified_markdown_text).
         """
+        if single_folder is None:
+            single_folder = not unified
+
         in_dir = Path(input_dir)
         candidates = in_dir.rglob("*") if recursive else in_dir.iterdir()
         pou_files = sorted(
             (path for path in candidates if path.is_file() and path.suffix.lower() == ".tcpou"),
             key=lambda path: str(path).lower(),
         )
+
+        written_files: list[Path] = []
+        unified_text: str | None = None
 
         if unified:
             merged_sections: list[str] = []
@@ -138,7 +149,6 @@ class TcPOUConverter:
                 merged_sections.append(md_text.rstrip())
 
             unified_text = "\n\n---\n\n".join(merged_sections) + "\n"
-            written_files: list[Path] = []
 
             if output_dir:
                 out_target = Path(output_dir)
@@ -153,26 +163,31 @@ class TcPOUConverter:
                     f.write(unified_text)
                 written_files.append(out_path)
 
-            return written_files, unified_text
+        if single_folder:
+            individual_output = Path(output_dir) if output_dir else None
+            if individual_output and individual_output.suffix.lower() == ".md":
+                individual_output = individual_output.parent
 
-        written_files: list[Path] = []
-        for pou_file in pou_files:
-            if recursive:
-                rel = pou_file.relative_to(in_dir)
-                if rel.parent.parts:
+            individual_files: list[Path] = []
+            for pou_file in pou_files:
+                if recursive and copy_folder_structure:
+                    rel = pou_file.relative_to(in_dir)
+                    custom_filename = str(rel.with_suffix(".md"))
+                elif recursive:
+                    rel = pou_file.relative_to(in_dir)
                     parts = list(rel.parent.parts) + [pou_file.stem]
                     custom_filename = "--".join(parts) + ".md"
                 else:
                     custom_filename = f"{pou_file.stem}.md"
-            else:
-                custom_filename = f"{pou_file.stem}.md"
 
-            _, out_path = self.convert_file(
-                pou_file,
-                output_dir=output_dir,
-                custom_filename=custom_filename,
-            )
-            if out_path:
-                written_files.append(out_path)
+                _, out_path = self.convert_file(
+                    pou_file,
+                    output_dir=individual_output,
+                    custom_filename=custom_filename,
+                )
+                if out_path:
+                    individual_files.append(out_path)
 
-        return written_files, None
+            written_files.extend(individual_files)
+
+        return written_files, unified_text

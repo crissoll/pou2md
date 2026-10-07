@@ -25,13 +25,23 @@ def main() -> int:
         "-r",
         "--recursive",
         action="store_true",
-        help="Recursively scan subdirectories for .TcPOU files and save them as 'foldera--folderb--file.md'.",
+        help="Recursively scan subdirectories for .TcPOU files.",
     )
     parser.add_argument(
         "-u",
         "--unified",
         action="store_true",
         help="Save all converted POUs into a single Markdown file.",
+    )
+    parser.add_argument(
+        "--single-folder",
+        action="store_true",
+        help="Also save individual Markdown files (the default unless --unified is used alone).",
+    )
+    parser.add_argument(
+        "--copy-folder-structure",
+        action="store_true",
+        help="Save individual Markdown files using the input folder structure instead of flattened names.",
     )
     parser.add_argument(
         "--stdout",
@@ -93,6 +103,8 @@ def main() -> int:
             output=args.output,
             recursive=args.recursive,
             unified=args.unified,
+            single_folder=(not args.unified) or args.single_folder or args.copy_folder_structure,
+            copy_folder_structure=args.copy_folder_structure,
             to_stdout=args.stdout or (input_path.is_file() and not args.output),
         )
 
@@ -121,6 +133,8 @@ def main() -> int:
             output_dir=args.output if not args.stdout else None,
             recursive=args.recursive,
             unified=args.unified,
+            single_folder=(not args.unified) or args.single_folder or args.copy_folder_structure,
+            copy_folder_structure=args.copy_folder_structure,
         )
 
         if args.stdout or (args.unified and not args.output):
@@ -130,7 +144,7 @@ def main() -> int:
                 print(unified_text)
         else:
             if args.unified and written:
-                print(f"Unified {len(written)} file into: {written[0]}")
+                print(f"Generated {len(written)} output file(s).")
             else:
                 print(f"Converted {len(written)} POU file(s) to '{args.output}'.")
                 for f in written:

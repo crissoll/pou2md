@@ -66,7 +66,7 @@ python -m tcpou_to_mermaid [input] [options]
 ### Command Syntax
 
 ```bash
-pou2md [input] [-o OUTPUT] [-r] [-u] [--stdout] [-w] [--curve {step,stepAfter,linear,basis,none}] [--no-bifurcate] [--repeat-inputs]
+pou2md [input] [-o OUTPUT] [-r] [-u] [--single-folder] [--copy-folder-structure] [--stdout] [-w] [--curve {step,stepAfter,linear,basis,none}] [--no-bifurcate] [--repeat-inputs]
 ```
 
 ### Options & Arguments
@@ -75,8 +75,10 @@ pou2md [input] [-o OUTPUT] [-r] [-u] [--stdout] [-w] [--curve {step,stepAfter,li
 | :--- | :--- | :--- | :--- |
 | `input` *(positional)* | `Path` (file or folder) | `.` *(Current dir)* | Path to a single `.TcPOU` file or a directory containing `.TcPOU` files. |
 | `-o`, `--output` | `Path` (folder or `.md` file) | `None` | Destination directory (e.g. `docs/`) or specific file path (e.g. `docs/system.md`). Required for directory input unless `--stdout` is set. |
-| `-r`, `--recursive` | `Flag` | `False` | Recursively scan subdirectories for `.TcPOU` files. Relative subfolder paths are flattened into filenames (e.g. `Motion--Axes--FB_Drive.md`). |
+| `-r`, `--recursive` | `Flag` | `False` | Recursively scan subdirectories for `.TcPOU` files. |
 | `-u`, `--unified` | `Flag` | `False` | Merges all converted POUs into a single Markdown document separated by horizontal dividers (`---`). |
+| `--single-folder` | `Flag` | Automatic | Also generate individual Markdown files. This is enabled by default unless `--unified` is used alone. |
+| `--copy-folder-structure` | `Flag` | `False` | Generate individual Markdown files under matching source subdirectories instead of flattened names. Also enables individual output. |
 | `--stdout` | `Flag` | `False` | Prints generated Markdown directly to `stdout` instead of writing to disk. |
 | `--curve` | `step` \| `stepAfter` \| `linear` \| `basis` \| `none` | `step` | Mermaid flowchart wire routing style. `step` generates orthogonal right-angle wires entering blocks horizontally (`>`). |
 | `--no-bifurcate` | `Flag` | *(Bifurcation enabled)* | Disables bifurcation junction nodes (`(( ))`), drawing independent wires from the source pin to each destination pin. |
@@ -99,7 +101,14 @@ The destination path depends on the input type and flags provided:
 | **Directory** | `-r -o path/to/dir/` | Recursively scans subfolders; outputs flattened names: `parent--subfolder--<POU_NAME>.md`. |
 | **Directory** | `-u -o path/to/dir/` | Combines all POUs into `path/to/dir/unified.md`. |
 | **Directory** | `-u -o path/to/custom.md`| Combines all POUs into the exact specified file `path/to/custom.md`. |
+| **Directory** | `-u --single-folder -o path/to/dir/` | Writes both individual files and `unified.md`. |
+| **Directory** | `-r --copy-folder-structure -o path/to/dir/` | Writes individual files under matching subdirectories. |
+| **Directory** | `-u --copy-folder-structure -o path/to/dir/` | Writes both nested individual files and `unified.md`. |
 | **Any Input** | `--stdout` | Emits Markdown to terminal `stdout` without creating any files on disk. |
+
+When both individual and unified output are requested with `-o path/to/file.md`,
+the unified document uses that exact path and individual files are written to
+its parent directory.
 
 ## Continuous Watching (`-w`)
 
@@ -122,6 +131,17 @@ pou2md POUs/FB_Motor.TcPOU -w
 For directory input, specify `-o/--output` or `--stdout`, just as with a
 one-time conversion. When a source file is removed, its generated individual
 Markdown file is removed as well; unified output files are rebuilt instead.
+
+Output mode combinations are:
+
+| Flags | Output |
+| :--- | :--- |
+| *(none)* | Individual files in one output folder |
+| `--unified` | Unified file only |
+| `--single-folder` | Individual files in one output folder |
+| `--unified --single-folder` | Both individual files and unified file |
+| `--copy-folder-structure` | Individual files in matching subfolders |
+| `--unified --copy-folder-structure` | Both nested individual files and unified file |
 
 The default polling interval is one second, followed by a 250 ms save debounce.
 This is normally suitable for mapped drives and SMB shares, but network latency
