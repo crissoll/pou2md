@@ -19,7 +19,7 @@ classDiagram
 ## Implementation (LD) — Network 1
 
 ```mermaid
-%%{ init: { 'flowchart': { 'curve': 'stepAfter' } } }%%
+%%{ init: { 'flowchart': { 'curve': 'step' } } }%%
 flowchart LR
     subgraph Network_1 [" Network 1 "]
         direction LR
@@ -57,7 +57,7 @@ flowchart LR
 ## Implementation (LD) — Network 2
 
 ```mermaid
-%%{ init: { 'flowchart': { 'curve': 'stepAfter' } } }%%
+%%{ init: { 'flowchart': { 'curve': 'step' } } }%%
 flowchart LR
     subgraph Network_2 [" Network 2 "]
         direction LR
@@ -95,7 +95,7 @@ flowchart LR
 ## Implementation (LD) — Network 3 (Label: DoorIsOpen)
 
 ```mermaid
-%%{ init: { 'flowchart': { 'curve': 'stepAfter' } } }%%
+%%{ init: { 'flowchart': { 'curve': 'step' } } }%%
 flowchart LR
     subgraph Network_3 [" Network 3 — Label: DoorIsOpen "]
         direction LR

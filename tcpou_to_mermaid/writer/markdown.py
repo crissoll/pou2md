@@ -16,7 +16,7 @@ class MarkdownWriter:
         "ST": "ST (Structured Text) — *flowchart not generated*",
     }
 
-    def __init__(self, curve: str | None = "stepAfter", bifurcate: bool = True):
+    def __init__(self, curve: str | None = "step", bifurcate: bool = True):
         self.class_renderer = ClassDiagramRenderer()
         self.flow_renderer = FlowchartRenderer(curve=curve, bifurcate=bifurcate)
 

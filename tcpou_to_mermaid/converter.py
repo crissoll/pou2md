@@ -14,7 +14,13 @@ from .writer.markdown import MarkdownWriter
 class TcPOUConverter:
     """Orchestrator to convert TwinCAT 3 .TcPOU files into Mermaid Markdown documents."""
 
-    def __init__(self, curve: str | None = "stepAfter", bifurcate: bool = True):
+    def __init__(
+        self,
+        curve: str | None = "step",
+        bifurcate: bool = True,
+        repeat_inputs: bool = False,
+    ):
+        self.repeat_inputs = repeat_inputs
         self.declaration_parser = DeclarationParser()
         self.nwl_parser = NWLParser()
         self.cfc_parser = CFCParser()
@@ -44,7 +50,9 @@ class TcPOUConverter:
             elif nwl_elem is not None:
                 graph = self.nwl_parser.parse(nwl_elem)
             elif cfc_elem is not None:
-                graph = self.cfc_parser.parse(cfc_elem)
+                graph = self.cfc_parser.parse(
+                    cfc_elem, repeat_inputs=self.repeat_inputs
+                )
             else:
                 graph = FlowGraph(language="UNKNOWN")
         else:

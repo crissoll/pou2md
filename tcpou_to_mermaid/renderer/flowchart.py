@@ -6,7 +6,7 @@ from ..model.flow_graph import FlowNode, FlowEdge, NetworkDiagram, FlowGraph
 class FlowchartRenderer:
     """Renders FlowGraph or NetworkDiagram into Mermaid flowchart LR strings with straight lines & bifurcation."""
 
-    def __init__(self, curve: str | None = "stepAfter", bifurcate: bool = True):
+    def __init__(self, curve: str | None = "step", bifurcate: bool = True):
         self.curve = curve
         self.bifurcate = bifurcate
 
@@ -202,6 +202,14 @@ class FlowchartRenderer:
                 lines.append(self._format_node(n, indent))
             lines.append("")
 
+        # Compute vertical rank alignment to route wires cleanly without cutting through nodes
+        rank_alignments = self._compute_rank_alignments(nodes, edges)
+        if rank_alignments:
+            lines.append(f"{indent}%% --- Vertical Rank Alignment ---")
+            for group in rank_alignments:
+                lines.append(f"{indent}{' ~~~ '.join(group)}")
+            lines.append("")
+
         if edges:
             lines.append(f"{indent}%% --- Wiring ---")
             for edge in edges:
@@ -215,6 +223,63 @@ class FlowchartRenderer:
             lines.pop()
 
         return "\n".join(lines)
+
+    def _compute_rank_alignments(
+        self, nodes: list[FlowNode], edges: list[FlowEdge]
+    ) -> list[list[str]]:
+        """
+        Compute vertical rank alignment groups for nodes in a DAG using topological depth.
+        Preserves visual Y order within each rank.
+        Returns list of groups (each group has >= 2 node IDs that belong to the same rank).
+        """
+        connected_ids = {e.source_id for e in edges} | {e.target_id for e in edges}
+        node_map = {n.id: n for n in nodes}
+        node_ids = [n.id for n in nodes if n.id in connected_ids and n.node_type != "JUNCTION"]
+
+        adj: dict[str, set[str]] = defaultdict(set)
+        in_degree: dict[str, int] = {nid: 0 for nid in node_ids}
+
+        for edge in edges:
+            src, dst = edge.source_id, edge.target_id
+            if src in in_degree and dst in in_degree:
+                if dst not in adj[src]:
+                    adj[src].add(dst)
+                    in_degree[dst] += 1
+
+        ranks: dict[str, int] = {}
+        queue = [nid for nid in node_ids if in_degree[nid] == 0]
+        for nid in queue:
+            ranks[nid] = 0
+
+        while queue:
+            curr = queue.pop(0)
+            curr_rank = ranks[curr]
+            for nxt in adj[curr]:
+                in_degree[nxt] -= 1
+                ranks[nxt] = max(ranks.get(nxt, 0), curr_rank + 1)
+                if in_degree[nxt] == 0:
+                    queue.append(nxt)
+
+        for nid in node_ids:
+            if nid not in ranks:
+                ranks[nid] = 0
+
+        rank_groups: dict[int, list[str]] = defaultdict(list)
+        for nid in node_ids:
+            rank_groups[ranks[nid]].append(nid)
+
+        alignments: list[list[str]] = []
+        for r in sorted(rank_groups.keys()):
+            group = rank_groups[r]
+            if len(group) >= 2:
+                # Sort group by visual Y position if available in metadata
+                group.sort(
+                    key=lambda nid: node_map[nid].metadata.get("y", 0)
+                    if nid in node_map
+                    else 0
+                )
+                alignments.append(group)
+        return alignments
 
     def _apply_bifurcation(
         self, nodes: list[FlowNode], edges: list[FlowEdge]
@@ -239,9 +304,12 @@ class FlowchartRenderer:
         new_nodes = list(nodes)
         new_edges: list[FlowEdge] = []
         has_junction = False
+        node_map = {n.id: n for n in nodes}
 
         for (source_id, src_pin), entries in groups.items():
-            if len(entries) > 1:
+            src_node = node_map.get(source_id)
+            # Only bifurcate if it's a block/operator output (do NOT bifurcate raw INPUT variables)
+            if len(entries) > 1 and (src_node is None or src_node.node_type != "INPUT"):
                 has_junction = True
                 pin_suffix = f"_{src_pin}" if src_pin else ""
                 j_id = f"J_{source_id}{pin_suffix}"

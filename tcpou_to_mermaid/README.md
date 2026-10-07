@@ -83,14 +83,15 @@ python -m tcpou_to_mermaid POUs/ -r -u -o full_system.md
 python -m tcpou_to_mermaid POUs/ -r -u --stdout
 ```
 
-### Visual Styling: Straight Lines & Bifurcation
+### Visual Styling: Straight Lines & Wire Routing
 By default, the converter produces diagrams matching TwinCAT graphical schematics:
-- **Straight Orthogonal Lines**: Uses `stepAfter` curve interpolation for clean right-angle wires.
-- **Bifurcation Junctions**: Outputs with multiple destinations split at a single bifurcation junction dot (`(( ))`) instead of duplicating pin labels (e.g. only one `Q` wire leaves a timer, then splits to its targets).
+- **Straight Orthogonal Lines**: Uses `step` midpoint curve interpolation for clean right-angle wires where arrows enter flush into the node face (`>`).
+- **Bifurcation Junctions**: Block outputs with multiple destinations split at a single bifurcation junction dot (`(( ))`) instead of duplicating pin labels.
+- **Rank Alignment**: CFC nodes are automatically column-aligned using topological depth and XML visual bounds, preventing wires from cutting through intermediate blocks.
 
 You can customize this behavior via CLI flags:
 ```bash
-# Use smooth curves instead of straight lines:
+# Use smooth curves instead of orthogonal lines:
 pou2md path/to/POU.TcPOU --curve basis
 
 # Use direct point-to-point lines:
@@ -98,6 +99,9 @@ pou2md path/to/POU.TcPOU --curve linear
 
 # Disable bifurcation (draw separate wires per connection):
 pou2md path/to/POU.TcPOU --no-bifurcate
+
+# Repeat input variable blocks per connection in CFC (avoids cross-diagram wires):
+pou2md path/to/POU.TcPOU --repeat-inputs
 ```
 
 ## Running Tests

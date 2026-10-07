@@ -38,9 +38,9 @@ def main() -> int:
     )
     parser.add_argument(
         "--curve",
-        choices=["stepAfter", "linear", "basis", "none"],
-        default="stepAfter",
-        help="Mermaid flowchart curve style (default: 'stepAfter' for straight orthogonal lines matching TwinCAT).",
+        choices=["step", "stepAfter", "linear", "basis", "none"],
+        default="step",
+        help="Mermaid flowchart curve style (default: 'step' for straight orthogonal lines with horizontal node entry).",
     )
     parser.add_argument(
         "--no-bifurcate",
@@ -48,6 +48,12 @@ def main() -> int:
         action="store_false",
         default=True,
         help="Disable bifurcation junction nodes (draw separate wires instead of a branching junction).",
+    )
+    parser.add_argument(
+        "--repeat-inputs",
+        action="store_true",
+        default=False,
+        help="Repeat input variable blocks per connection in CFC (avoids long cross-diagram wires).",
     )
 
     args = parser.parse_args()
@@ -58,7 +64,11 @@ def main() -> int:
         return 1
 
     curve_setting = None if args.curve == "none" else args.curve
-    converter = TcPOUConverter(curve=curve_setting, bifurcate=args.bifurcate)
+    converter = TcPOUConverter(
+        curve=curve_setting,
+        bifurcate=args.bifurcate,
+        repeat_inputs=args.repeat_inputs,
+    )
 
     if input_path.is_file():
         md_text, out_file = converter.convert_file(

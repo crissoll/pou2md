@@ -13,10 +13,22 @@ def _clean_id(val: str | None) -> str:
     return val.strip('"').rstrip("L")
 
 
+def _parse_bounds(bounds_str: str | None) -> tuple[int, int]:
+    if not bounds_str:
+        return 0, 0
+    parts = bounds_str.strip('"').split(",")
+    if len(parts) >= 2:
+        try:
+            return int(parts[0].strip()), int(parts[1].strip())
+        except ValueError:
+            pass
+    return 0, 0
+
+
 class CFCParser:
     """Parser for CFC (Continuous Function Chart) implementation format."""
 
-    def parse(self, cfc_elem: ET.Element) -> FlowGraph:
+    def parse(self, cfc_elem: ET.Element, repeat_inputs: bool = False) -> FlowGraph:
         """Parse a <CFC> element into a FlowGraph."""
         items = cfc_elem.findall(
             './/o[@t="CFCImplementationObject"]/o[@n="Items"]/l2[@n="InnerList"]/o'
@@ -29,16 +41,17 @@ class CFCParser:
 
         for it in items:
             t = it.attrib.get("t", "")
+            x, y = _parse_bounds(it.findtext('./v[@n="Bounds"]'))
             if t == "CFCInputElement":
                 text = _strip_quotes(it.findtext('./o[@n="Text"]/v[@n="Text"]'))
                 pin_id = _clean_id(it.findtext('./o[@n="Output"]/v[@n="Id"]'))
                 elem_id = _clean_id(it.findtext('./v[@n="Id"]'))
-                input_elems.append({"id": elem_id, "text": text, "pin_id": pin_id})
+                input_elems.append({"id": elem_id, "text": text, "pin_id": pin_id, "x": x, "y": y})
             elif t == "CFCOutputElement":
                 text = _strip_quotes(it.findtext('./o[@n="Text"]/v[@n="Text"]'))
                 pin_id = _clean_id(it.findtext('./o[@n="Input"]/v[@n="Id"]'))
                 elem_id = _clean_id(it.findtext('./v[@n="Id"]'))
-                output_elems.append({"id": elem_id, "text": text, "pin_id": pin_id})
+                output_elems.append({"id": elem_id, "text": text, "pin_id": pin_id, "x": x, "y": y})
             elif t == "CFCBoxElement":
                 kind = _strip_quotes(it.findtext('./v[@n="KindOfCall"]'))
                 elem_id = _clean_id(it.findtext('./v[@n="Id"]'))
@@ -61,6 +74,8 @@ class CFCParser:
                         "in_pins": in_pins,
                         "out_pins": out_pins,
                         "texts": texts,
+                        "x": x,
+                        "y": y,
                     }
                 )
             elif t == "CFCConnection":
@@ -69,20 +84,56 @@ class CFCParser:
                 conn_id = _clean_id(it.findtext('./v[@n="Id"]'))
                 connections.append({"id": conn_id, "src": src, "dst": dst})
 
+        # Sort elements by visual Y position (top to bottom)
+        input_elems.sort(key=lambda it: it.get("y", 0))
+        output_elems.sort(key=lambda it: it.get("y", 0))
+
         pin_to_node: dict[str, tuple[str, str]] = {}
         nodes: dict[str, FlowNode] = {}
 
         # 1. Inputs
-        for inp in input_elems:
-            name = inp["text"]
-            short_id = name.split(".")[-1]
-            nodes[short_id] = FlowNode(
-                id=short_id,
-                label=name,
-                shape="stadium",
-                node_type="INPUT",
-            )
-            pin_to_node[inp["pin_id"]] = (short_id, "")
+        if repeat_inputs:
+            from collections import defaultdict
+            inp_conns = defaultdict(list)
+            for conn in connections:
+                inp_conns[conn["src"]].append(conn)
+
+            for inp in input_elems:
+                name = inp["text"]
+                short_id = name.split(".")[-1]
+                conns = inp_conns.get(inp["pin_id"], [])
+                if len(conns) <= 1:
+                    nodes[short_id] = FlowNode(
+                        id=short_id,
+                        label=name,
+                        shape="stadium",
+                        node_type="INPUT",
+                        metadata={"x": inp.get("x", 0), "y": inp.get("y", 0)},
+                    )
+                    pin_to_node[inp["pin_id"]] = (short_id, "")
+                else:
+                    for idx, c in enumerate(conns, 1):
+                        sub_id = f"{short_id}_{idx}"
+                        nodes[sub_id] = FlowNode(
+                            id=sub_id,
+                            label=name,
+                            shape="stadium",
+                            node_type="INPUT",
+                            metadata={"x": inp.get("x", 0), "y": inp.get("y", 0)},
+                        )
+                        c["src_node_override"] = sub_id
+        else:
+            for inp in input_elems:
+                name = inp["text"]
+                short_id = name.split(".")[-1]
+                nodes[short_id] = FlowNode(
+                    id=short_id,
+                    label=name,
+                    shape="stadium",
+                    node_type="INPUT",
+                    metadata={"x": inp.get("x", 0), "y": inp.get("y", 0)},
+                )
+                pin_to_node[inp["pin_id"]] = (short_id, "")
 
         # 2. Outputs
         for out in output_elems:
@@ -93,6 +144,7 @@ class CFCParser:
                 label=name,
                 shape="stadium",
                 node_type="OUTPUT",
+                metadata={"x": out.get("x", 0), "y": out.get("y", 0)},
             )
             pin_to_node[out["pin_id"]] = (short_id, "")
 
@@ -123,7 +175,7 @@ class CFCParser:
                 node_type = "PROGRAM"
             elif kind == "Operator":
                 node_id = f"{box_type}{cnt}"
-                shape = "hexagon"
+                shape = "rectangle"
                 label = box_type
                 node_type = "OPERATOR"
             else:  # FunctionBlock
@@ -137,6 +189,7 @@ class CFCParser:
                 label=label,
                 shape=shape,
                 node_type=node_type,
+                metadata={"x": box.get("x", 0), "y": box.get("y", 0)},
             )
 
             for idx, p_id in enumerate(box["in_pins"]):
@@ -154,10 +207,17 @@ class CFCParser:
         # 4. Connections
         edges: list[FlowEdge] = []
         for conn in connections:
-            src_info = pin_to_node.get(conn["src"])
-            dst_info = pin_to_node.get(conn["dst"])
-            if src_info and dst_info:
+            if "src_node_override" in conn:
+                src_node = conn["src_node_override"]
+                src_lbl = ""
+            else:
+                src_info = pin_to_node.get(conn["src"])
+                if not src_info:
+                    continue
                 src_node, src_lbl = src_info
+
+            dst_info = pin_to_node.get(conn["dst"])
+            if dst_info:
                 dst_node, dst_lbl = dst_info
                 if src_lbl and dst_lbl:
                     lbl = f"{src_lbl} → {dst_lbl}"

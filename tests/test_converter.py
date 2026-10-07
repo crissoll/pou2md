@@ -334,6 +334,21 @@ class TestEndToEndConverter(unittest.TestCase):
         self.assertNotIn("classDef junction", md_no_bif)
         self.assertNotIn("%%{ init:", md_no_bif)
 
+    def test_cfc_rank_alignment_and_repeat_inputs(self):
+        # Default CFC conversion should include rank alignment ~~~ and step curve
+        conv = TcPOUConverter()
+        md_text, _ = conv.convert_file(POU_DIR / "MAIN.TcPOU")
+        self.assertIn("%%{ init: { 'flowchart': { 'curve': 'step' } } }%%", md_text)
+        self.assertIn("ADD1[\"ADD\"]", md_text)
+        self.assertIn("ADD1 ~~~ SUB1", md_text)
+        self.assertIn("GT1 ~~~ LT1", md_text)
+
+        # With repeat_inputs=True
+        conv_rep = TcPOUConverter(repeat_inputs=True)
+        md_rep, _ = conv_rep.convert_file(POU_DIR / "MAIN.TcPOU")
+        self.assertIn("fTempActual_1", md_rep)
+        self.assertIn("fTempActual_2", md_rep)
+
 
 if __name__ == "__main__":
     unittest.main()
