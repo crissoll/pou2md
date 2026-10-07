@@ -1,6 +1,6 @@
 # POU to Markdown Converter
 
-[![CI](https://github.com/your-username/pou2md/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/pou2md/actions/workflows/ci.yml)
+[![CI](https://github.com/crissoll/pou2md/actions/workflows/ci.yml/badge.svg)](https://github.com/crissoll/pou2md/actions/workflows/ci.yml)
 [![Python Versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -13,7 +13,7 @@ A modular Python tool that converts Beckhoff TwinCAT 3 `.TcPOU` files into Merma
 - **Function Block Diagram (FBD)**: Recursively parses `<NWL>` trees, resolving nested calls, pass-through assignments, and negated inputs.
 - **Ladder Diagram (LD)**: Automatically detects LD view mode, formatting contacts (`┤├`), coils (`( )`), and jump labels (`▶ Label`).
 - **Structured Text (ST)**: Embeds the original IEC 61131-3 source code in an `iecst` code block alongside the declaration class diagram.
-- **Zero External Dependencies**: Pure Python standard library implementation (`xml.etree.ElementTree`, `re`, `argparse`, `dataclasses`, `pathlib`).
+- **Minimal Runtime Dependencies**: Uses only the Python standard library on Python 3.11+; Python 3.10 installs `tomli` for TOML configuration support.
 
 ## Architecture
 
