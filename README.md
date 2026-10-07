@@ -66,7 +66,7 @@ python -m tcpou_to_mermaid [input] [options]
 ### Command Syntax
 
 ```bash
-pou2md [input] [-o OUTPUT] [-r] [-u] [--single-folder] [--copy-folder-structure] [--stdout] [-w] [--curve {step,stepAfter,linear,basis,none}] [--no-bifurcate] [--repeat-inputs]
+pou2md [input] [-o OUTPUT] [-r] [-u] [--single-folder] [--copy-folder-structure] [--exclude PATTERN] [--dry-run] [--clean] [--stdout] [-w] [--curve {step,stepAfter,linear,basis,none}] [--no-bifurcate] [--repeat-inputs]
 ```
 
 ### Options & Arguments
@@ -91,6 +91,9 @@ pou2md [input] [-o OUTPUT] [-r] [-u] [--single-folder] [--copy-folder-structure]
 | `--retry-delay` | Seconds | `0.5` | Delay between conversion attempts. |
 | `-v`, `--verbose` | `Flag` | `False` | Enable diagnostic logging. |
 | `--quiet` | `Flag` | `False` | Suppress normal status messages while preserving errors. |
+| `--log-format` | `text` \| `json` | `text` | Select human-readable or machine-readable logs. |
+| `--dry-run` | `Flag` | `False` | Show planned outputs without writing Markdown or a manifest. |
+| `--clean` | `Flag` | `False` | Remove stale outputs previously recorded in the output manifest. Requires `-o`. |
 | `-h`, `--help` | `Flag` | - | Display CLI help message and exit. |
 
 ---
@@ -173,6 +176,29 @@ pou2md MyPlcProject/ -r -w -o docs/ --exclude "Backup/*" --exclude "*_old.TcPOU"
 Use `--verbose` for diagnostic status logging or `--quiet` to suppress normal
 status messages while retaining errors. Watcher timing can be tuned with
 `--poll-interval`, `--debounce-delay`, `--retry-count`, and `--retry-delay`.
+
+## Dry runs, cleanup, and manifests
+
+Use `--dry-run` to inspect the output plan without creating files:
+
+```bash
+pou2md MyPlcProject/ -r --copy-folder-structure --dry-run -o docs/
+```
+
+When writing to an output directory, the converter maintains
+`.pou2md-manifest.json` containing the generated Markdown paths. `--clean`
+removes only stale paths recorded in that manifest; it never scans for or
+deletes untracked files:
+
+```bash
+pou2md MyPlcProject/ -r --clean -o docs/
+```
+
+Use JSON logs for automation:
+
+```bash
+pou2md MyPlcProject/ -r -w -o docs/ --log-format json
+```
 
 ---
 

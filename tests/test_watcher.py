@@ -4,7 +4,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tcpou_to_mermaid.watcher import LockGuard, is_process_running, _scan_files, _get_lock_path
+from tcpou_to_mermaid.watcher import (
+    LockGuard,
+    _get_lock_path,
+    _scan_files,
+)
 
 
 class TestWatcher(unittest.TestCase):

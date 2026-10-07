@@ -1,9 +1,22 @@
 from __future__ import annotations
+
 import argparse
+import json
 import logging
 import sys
 from pathlib import Path
+
 from .converter import TcPOUConverter
+from .manifest import clean_stale_outputs, manifest_path, save_manifest
+
+
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        return json.dumps({
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "logger": record.name,
+        })
 
 
 def main() -> int:
@@ -57,6 +70,9 @@ def main() -> int:
     parser.add_argument("--retry-delay", type=float, default=0.5, help="Delay between conversion attempts in seconds.")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable diagnostic logging.")
     parser.add_argument("--quiet", action="store_true", help="Suppress normal status messages.")
+    parser.add_argument("--log-format", choices=("text", "json"), default="text", help="Logging output format.")
+    parser.add_argument("--dry-run", action="store_true", help="Show planned outputs without writing files.")
+    parser.add_argument("--clean", action="store_true", help="Remove stale outputs recorded by the manifest.")
     parser.add_argument(
         "--stdout",
         action="store_true",
@@ -99,10 +115,18 @@ def main() -> int:
         parser.error("--copy-folder-structure requires --recursive for directory input")
     if input_path.is_dir() and args.stdout and not args.unified:
         parser.error("--stdout for directory input requires --unified")
+    if args.clean and not args.output:
+        parser.error("--clean requires --output")
+    if args.clean and not input_path.is_dir():
+        parser.error("--clean requires directory input")
+    if args.dry_run and args.watch:
+        parser.error("--dry-run cannot be combined with --watch")
 
+    handler = logging.StreamHandler()
+    handler.setFormatter(_JsonFormatter() if args.log_format == "json" else logging.Formatter("[%(levelname)s] %(message)s"))
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else (logging.ERROR if args.quiet else logging.INFO),
-        format="[%(levelname)s] %(message)s",
+        handlers=[handler],
     )
 
     if not input_path.exists():
@@ -170,7 +194,23 @@ def main() -> int:
             single_folder=(not args.unified) or args.single_folder or args.copy_folder_structure,
             copy_folder_structure=args.copy_folder_structure,
             exclude=tuple(args.exclude),
+            dry_run=args.dry_run,
         )
+
+        if args.output:
+            manifest = manifest_path(args.output)
+            current_outputs = set(written)
+            stale = clean_stale_outputs(manifest, current_outputs, dry_run=args.dry_run) if args.clean else []
+            if args.clean and not args.dry_run or not args.dry_run:
+                save_manifest(manifest, current_outputs)
+        else:
+            stale = []
+
+        if args.dry_run:
+            for path in written:
+                print(f"Would generate: {path}")
+            for path in stale:
+                print(f"Would remove: {path}")
 
         if args.stdout or (args.unified and not args.output):
             if hasattr(sys.stdout, "reconfigure"):

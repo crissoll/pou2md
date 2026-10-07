@@ -1,5 +1,4 @@
 from __future__ import annotations
-from pathlib import Path
 from ..model.declaration import PouDeclaration
 from ..model.flow_graph import FlowGraph
 from ..renderer.class_diagram import ClassDiagramRenderer

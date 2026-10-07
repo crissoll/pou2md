@@ -3,6 +3,7 @@ Unit and integration tests for the TcPOU to Mermaid converter.
 """
 
 from __future__ import annotations
+
 import subprocess
 import sys
 import unittest
@@ -10,13 +11,11 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from tcpou_to_mermaid.converter import TcPOUConverter
+from tcpou_to_mermaid.parser.cfc_parser import CFCParser
 from tcpou_to_mermaid.parser.declaration import DeclarationParser
 from tcpou_to_mermaid.parser.nwl_parser import NWLParser
-from tcpou_to_mermaid.parser.cfc_parser import CFCParser
 from tcpou_to_mermaid.parser.st_parser import STParser
 from tcpou_to_mermaid.renderer.class_diagram import ClassDiagramRenderer
-from tcpou_to_mermaid.renderer.flowchart import FlowchartRenderer
-
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 POU_DIR = BASE_DIR / "POUs" / "POUs"
@@ -253,8 +252,8 @@ class TestEndToEndConverter(unittest.TestCase):
         self.assertIn("flowchart LR", result.stdout)
 
     def test_recursive_conversion_naming(self):
-        import tempfile
         import shutil
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
@@ -310,8 +309,8 @@ class TestEndToEndConverter(unittest.TestCase):
             self.assertIn("# MAIN", unified_text)
 
     def test_recursive_copy_folder_structure(self):
-        import tempfile
         import shutil
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             tmp_path = Path(tmp_dir)
@@ -353,6 +352,20 @@ class TestEndToEndConverter(unittest.TestCase):
 
             self.assertEqual(written, [output_dir / "Keep.md"])
             self.assertFalse(list(output_dir.glob("*.tmp")))
+
+    def test_dry_run_does_not_write_outputs(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            output_dir = Path(tmp_dir) / "output"
+            written, _ = self.converter.convert_directory(
+                input_dir=POU_DIR,
+                output_dir=output_dir,
+                dry_run=True,
+            )
+
+            self.assertEqual(len(written), 4)
+            self.assertFalse(output_dir.exists())
 
     def test_cli_recursive_and_unified(self):
         import tempfile

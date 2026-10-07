@@ -1,12 +1,15 @@
 from __future__ import annotations
-import os
+
 import fnmatch
 import logging
+import os
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
+
 from .converter import TcPOUConverter
+from .manifest import load_manifest, manifest_path, save_manifest
 
 LOGGER = logging.getLogger(__name__)
 
@@ -162,6 +165,11 @@ def start_watcher(
         return 1
 
     try:
+        output_manifest = (
+            manifest_path(output)
+            if output and not to_stdout and input_path.is_dir()
+            else None
+        )
         # Initial compilation
         try:
             if input_path.is_file():
@@ -196,6 +204,8 @@ def start_watcher(
                         f"[pou2md] Initial build: Converted {len(written)} POU file(s) to '{output}'.",
                         quiet,
                     )
+                if output_manifest:
+                    save_manifest(output_manifest, set(written))
         except Exception as e:
             LOGGER.error(
                 f"[pou2md] Initial build failed: {e}. "
@@ -253,6 +263,8 @@ def start_watcher(
                         print(unified_text)
                     elif written:
                         _status(f"[{now}] Detected changes -> Updated unified file: {written[0].name}", quiet)
+                    if output_manifest:
+                        save_manifest(output_manifest, set(written))
                 except Exception as e:
                     LOGGER.error("[%s] Error updating unified document: %s", now, e)
                     current_snapshot = previous_snapshot
@@ -289,6 +301,10 @@ def start_watcher(
                         elif out_file:
                             label = "Added" if p in added else "Updated"
                             _status(f"[{now}] {label} '{p.name}' -> Generated: {out_file.name}", quiet)
+                            if output_manifest:
+                                current_outputs = load_manifest(output_manifest)
+                                current_outputs.add(out_file)
+                                save_manifest(output_manifest, current_outputs)
                     except Exception as e:
                         failed.add(p)
                         LOGGER.error(
@@ -324,6 +340,10 @@ def start_watcher(
                         if target_md.exists():
                             target_md.unlink(missing_ok=True)
                             _status(f"[{now}] Removed '{p.name}' -> Deleted: {target_md.name}", quiet)
+                            if output_manifest:
+                                current_outputs = load_manifest(output_manifest)
+                                current_outputs.discard(target_md)
+                                save_manifest(output_manifest, current_outputs)
 
     except KeyboardInterrupt:
         _status("\n[pou2md] Stopped watching. Bye!", quiet)

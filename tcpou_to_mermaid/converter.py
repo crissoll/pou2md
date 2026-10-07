@@ -1,15 +1,16 @@
 from __future__ import annotations
-import os
+
 import fnmatch
 import logging
+import os
 import time
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from .model.declaration import PouDeclaration
+
 from .model.flow_graph import FlowGraph
+from .parser.cfc_parser import CFCParser
 from .parser.declaration import DeclarationParser
 from .parser.nwl_parser import NWLParser
-from .parser.cfc_parser import CFCParser
 from .parser.st_parser import STParser
 from .writer.markdown import MarkdownWriter
 
@@ -101,6 +102,7 @@ class TcPOUConverter:
         file_path: Path | str,
         output_dir: Path | str | None = None,
         custom_filename: str | None = None,
+        dry_run: bool = False,
     ) -> tuple[str, Path | None]:
         """Convert a single .TcPOU file, optionally writing to an output directory."""
         path = Path(file_path)
@@ -113,14 +115,18 @@ class TcPOUConverter:
             out_target = Path(output_dir)
             if out_target.suffix.lower() == ".md" and not out_target.is_dir():
                 out_path = out_target
-                out_path.parent.mkdir(parents=True, exist_ok=True)
+                if not dry_run:
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
             else:
-                out_target.mkdir(parents=True, exist_ok=True)
+                if not dry_run:
+                    out_target.mkdir(parents=True, exist_ok=True)
                 fname = custom_filename if custom_filename else f"{path.stem}.md"
                 out_path = out_target / fname
-                out_path.parent.mkdir(parents=True, exist_ok=True)
+                if not dry_run:
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
 
-            _atomic_write(out_path, md_output)
+            if not dry_run:
+                _atomic_write(out_path, md_output)
 
         return md_output, out_path
 
@@ -134,6 +140,7 @@ class TcPOUConverter:
         copy_folder_structure: bool = False,
         exclude: tuple[str, ...] = (),
         unified_filename: str = "unified.md",
+        dry_run: bool = False,
     ) -> tuple[list[Path], str | None]:
         """
         Convert all .TcPOU files in a directory.
@@ -181,12 +188,15 @@ class TcPOUConverter:
                 out_target = Path(output_dir)
                 if out_target.suffix.lower() == ".md":
                     out_path = out_target
-                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    if not dry_run:
+                        out_path.parent.mkdir(parents=True, exist_ok=True)
                 else:
-                    out_target.mkdir(parents=True, exist_ok=True)
+                    if not dry_run:
+                        out_target.mkdir(parents=True, exist_ok=True)
                     out_path = out_target / unified_filename
 
-                _atomic_write(out_path, unified_text)
+                if not dry_run:
+                    _atomic_write(out_path, unified_text)
                 written_files.append(out_path)
 
         if single_folder:
@@ -210,6 +220,7 @@ class TcPOUConverter:
                     pou_file,
                     output_dir=individual_output,
                     custom_filename=custom_filename,
+                    dry_run=dry_run,
                 )
                 if out_path:
                     individual_files.append(out_path)
