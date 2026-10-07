@@ -74,7 +74,7 @@ pou2md [input] [-o OUTPUT] [-r] [-u] [--single-folder] [--copy-folder-structure]
 | Argument / Flag | Value Type / Choices | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `input` *(positional)* | `Path` (file or folder) | `.` *(Current dir)* | Path to a single `.TcPOU` file or a directory containing `.TcPOU` files. |
-| `-o`, `--output` | `Path` (folder or `.md` file) | `None` | Destination directory (e.g. `docs/`) or specific file path (e.g. `docs/system.md`). Required for directory input unless `--stdout` is set. |
+| `-o`, `--output` | `Path` (folder or `.md` file) | `pou2md-output/` | Destination directory (e.g. `docs/`) or specific file path (e.g. `docs/system.md`). |
 | `-r`, `--recursive` | `Flag` | `False` | Recursively scan subdirectories for `.TcPOU` files. |
 | `-u`, `--unified` | `Flag` | `False` | Merges all converted POUs into a single Markdown document separated by horizontal dividers (`---`). |
 | `--single-folder` | `Flag` | Automatic | Also generate individual Markdown files. This is enabled by default unless `--unified` is used alone. |
@@ -106,9 +106,10 @@ The destination path depends on the input type and flags provided:
 
 | Input Type | Flags | Destination Behavior |
 | :--- | :--- | :--- |
-| **Single `.TcPOU` file** | *No `-o` or `--stdout`* | Prints generated Markdown directly to `stdout`. |
+| **Single `.TcPOU` file** | *No `-o` or `--stdout`* | Writes `<POU_NAME>.md` to `pou2md-output/`. |
 | **Single `.TcPOU` file** | `-o path/to/dir/` | Creates `path/to/dir/<POU_NAME>.md`. |
 | **Single `.TcPOU` file** | `-o path/to/custom.md` | Writes directly to `path/to/custom.md`. |
+| **Directory** | *No `-o` or `--stdout`* | Generates individual `<POU_NAME>.md` files inside `pou2md-output/`. |
 | **Directory** | `-o path/to/dir/` | Generates individual `<POU_NAME>.md` files inside `path/to/dir/`. |
 | **Directory** | `-r -o path/to/dir/` | Recursively scans subfolders; outputs flattened names: `parent--subfolder--<POU_NAME>.md`. |
 | **Directory** | `-u -o path/to/dir/` | Combines all POUs into `path/to/dir/unified.md`. |
@@ -137,11 +138,12 @@ pou2md MyPlcProject/ -r -w -o docs/generated/
 pou2md MyPlcProject/ -r -u -w -o docs/complete_system_manual.md
 
 # Watch one file and print each generated document to stdout
-pou2md POUs/FB_Motor.TcPOU -w
+pou2md POUs/FB_Motor.TcPOU -w --stdout
 ```
 
-For directory input, specify `-o/--output` or `--stdout`, just as with a
-one-time conversion. When a source file is removed, its generated individual
+When the output directory is inside the input directory, it is automatically
+excluded from scanning and a warning is displayed. For directory input, the
+default output directory is `pou2md-output/`. When a source file is removed, its generated individual
 Markdown file is removed as well; unified output files are rebuilt instead.
 
 Output mode combinations are:
@@ -386,7 +388,7 @@ done
 
 For CI/CD scripts and automated tools, the CLI returns standard status codes:
 - `0`: Execution completed successfully.
-- `1`: Error encountered (e.g. input path does not exist, or directory input without `-o` / `--stdout`).
+- `1`: Error encountered (e.g. input path does not exist or an output path would overwrite the input file).
 
 ## Running Tests
 

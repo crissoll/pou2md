@@ -4,6 +4,7 @@ Unit and integration tests for the POU to Markdown converter.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 import unittest
@@ -330,6 +331,30 @@ class TestEndToEndConverter(unittest.TestCase):
 
             self.assertEqual(written, [out_dir / "foldera" / "folderb" / "SubSim.md"])
 
+    def test_recursive_conversion_excludes_output_directory_inside_input(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_dir = Path(tmp_dir)
+            output_dir = input_dir / "pou2md-output"
+            output_dir.mkdir()
+            (input_dir / "Keep.TcPOU").write_text(
+                (POU_DIR / "Simulation.TcPOU").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            (output_dir / "AlreadyGenerated.TcPOU").write_text(
+                (POU_DIR / "Simulation.TcPOU").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+
+            written, _ = self.converter.convert_directory(
+                input_dir=input_dir,
+                output_dir=output_dir,
+                recursive=True,
+            )
+
+            self.assertEqual(written, [output_dir / "Keep.md"])
+
     def test_exclude_patterns_and_atomic_output(self):
         import tempfile
 
@@ -477,6 +502,28 @@ class TestEndToEndConverter(unittest.TestCase):
             content = out_file.read_text(encoding="utf-8")
             self.assertIn("# FB_Blinker", content)
             self.assertIn("# MAIN", content)
+
+    def test_cli_default_output_directory(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            input_dir = Path(tmp_dir)
+            (input_dir / "Example.TcPOU").write_text(
+                (POU_DIR / "Simulation.TcPOU").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, "-m", "pou2md", str(input_dir)],
+                cwd=str(input_dir),
+                env={**os.environ, "PYTHONPATH": str(BASE_DIR)},
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue((input_dir / "pou2md-output" / "Example.md").exists())
+            self.assertIn("excluded from scanning", result.stderr)
 
     def test_curve_and_bifurcation(self):
         # Test that stepAfter curve and bifurcation junction nodes are rendered

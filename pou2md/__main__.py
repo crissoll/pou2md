@@ -41,7 +41,8 @@ def main() -> int:
     parser.add_argument(
         "-o",
         "--output",
-        help="Output directory or output file path (e.g. -o output/ or -o unified.md).",
+        default="pou2md-output",
+        help="Output directory or output file path (default: pou2md-output/).",
     )
     parser.add_argument(
         "-r",
@@ -153,6 +154,11 @@ def main() -> int:
     validation_error = _validate_paths(input_path, args)
     if validation_error:
         parser.error(validation_error)
+    if _output_is_inside_input(input_path, args.output):
+        logging.getLogger(__name__).warning(
+            "Output path '%s' is inside input directory; the output folder will be excluded from scanning.",
+            args.output,
+        )
 
     curve_setting = None if args.curve == "none" else args.curve
     converter = TcPOUConverter(
@@ -280,9 +286,16 @@ def _validate_paths(input_path: Path, args: argparse.Namespace) -> str | None:
         return "output path cannot overwrite the input .TcPOU file"
     if input_path.is_dir() and output == source:
         return "output directory cannot be the input directory"
-    if input_path.is_dir() and source in output.parents:
-        return "output directory cannot be inside the input directory"
     return None
+
+
+def _output_is_inside_input(input_path: Path, output_path: str | None) -> bool:
+    if not output_path or not input_path.is_dir():
+        return False
+    source = input_path.resolve()
+    output = Path(output_path).resolve()
+    output_folder = output.parent if output.suffix.lower() == ".md" else output
+    return source in output_folder.parents
 
 
 if __name__ == "__main__":

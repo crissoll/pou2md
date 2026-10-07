@@ -172,6 +172,8 @@ class TcPOUConverter:
             single_folder = not unified
 
         in_dir = Path(input_dir)
+        output_path = Path(output_dir).resolve() if output_dir else None
+        output_is_file = bool(output_path and output_path.suffix.lower() == ".md")
         candidates = in_dir.rglob("*") if recursive else in_dir.iterdir()
         pou_files = sorted(
             (
@@ -179,6 +181,11 @@ class TcPOUConverter:
                 if path.is_file()
                 and path.suffix.lower() == ".tcpou"
                 and not _is_excluded(path, in_dir, exclude)
+                and not _is_output_path(
+                    path,
+                    output_path,
+                    output_is_file,
+                )
             ),
             key=lambda path: str(path).lower(),
         )
@@ -251,3 +258,12 @@ def _is_excluded(path: Path, root: Path, patterns: tuple[str, ...]) -> bool:
         for pattern in patterns
         for candidate in candidates
     )
+
+
+def _is_output_path(path: Path, output_path: Path | None, output_is_file: bool) -> bool:
+    if output_path is None:
+        return False
+    resolved_path = path.resolve()
+    if output_is_file:
+        return resolved_path == output_path
+    return output_path == resolved_path or output_path in resolved_path.parents
