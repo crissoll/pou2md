@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tcpou-to-mermaid"
+name = "pou2md"
 version = "0.1.0"
-description = "Convert TwinCAT 3 .TcPOU files into Mermaid diagrams in Markdown"
+description = "Convert TwinCAT 3 .TcPOU files into Markdown documentation with Mermaid diagrams"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -54,10 +54,10 @@ Repository = "https://github.com/crissoll/pou2md"
 Issues = "https://github.com/crissoll/pou2md/issues"
 
 [project.scripts]
-pou2md = "tcpou_to_mermaid.__main__:main"
+pou2md = "pou2md.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["tcpou_to_mermaid*"]
+include = ["pou2md*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

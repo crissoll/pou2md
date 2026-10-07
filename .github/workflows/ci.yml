@@ -38,13 +38,13 @@ jobs:
         run: |
           pou2md --help
           pou2md --version
-          python -m tcpou_to_mermaid --help
+          python -m pou2md --help
 
       - name: Compile sources
-        run: python -m compileall -q tcpou_to_mermaid tests
+        run: python -m compileall -q pou2md tests
 
       - name: Lint
-        run: ruff check --select F tcpou_to_mermaid tests
+        run: ruff check --select F pou2md tests
 
   build-check:
     name: Verify Package Build & Metadata

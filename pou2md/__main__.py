@@ -27,7 +27,7 @@ class _JsonFormatter(logging.Formatter):
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        prog="python -m tcpou_to_mermaid",
+        prog="python -m pou2md",
         description="Convert TwinCAT 3 .TcPOU files into Mermaid diagrams in Markdown.",
     )
     parser.add_argument(
@@ -245,7 +245,7 @@ def main() -> int:
 
 def _package_version() -> str:
     try:
-        return version("tcpou-to-mermaid")
+        return version("pou2md")
     except PackageNotFoundError:
         return "0.1.0"
 

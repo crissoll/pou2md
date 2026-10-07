@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tcpou_to_mermaid.watcher import (
+from pou2md.watcher import (
     LockGuard,
     _get_lock_path,
     _scan_files,
@@ -36,7 +36,7 @@ class TestWatcher(unittest.TestCase):
         # Simulate active lock by another process
         lock_file.write_text("12345", encoding="utf-8")
 
-        with patch("tcpou_to_mermaid.watcher.is_process_running", return_value=True):
+        with patch("pou2md.watcher.is_process_running", return_value=True):
             guard = LockGuard(lock_file)
             self.assertFalse(guard.acquire())
 
@@ -45,7 +45,7 @@ class TestWatcher(unittest.TestCase):
         # Simulate stale lock by deceased process
         lock_file.write_text("9999999", encoding="utf-8")
 
-        with patch("tcpou_to_mermaid.watcher.is_process_running", return_value=False):
+        with patch("pou2md.watcher.is_process_running", return_value=False):
             guard = LockGuard(lock_file)
             self.assertTrue(guard.acquire())
             self.assertEqual(lock_file.read_text(encoding="utf-8").strip(), str(os.getpid()))

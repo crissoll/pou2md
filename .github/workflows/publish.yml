@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/tcpou-to-mermaid
+      url: https://pypi.org/p/pou2md
     permissions:
       id-token: write  # Mandatory for PyPI Trusted Publishing
 

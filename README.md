@@ -1,6 +1,6 @@
-# TcPOU to Mermaid Converter
+# POU to Markdown Converter
 
-[![CI](https://github.com/your-username/tcpou-to-mermaid/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/tcpou-to-mermaid/actions/workflows/ci.yml)
+[![CI](https://github.com/your-username/pou2md/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/pou2md/actions/workflows/ci.yml)
 [![Python Versions](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -18,7 +18,7 @@ A modular Python tool that converts Beckhoff TwinCAT 3 `.TcPOU` files into Merma
 ## Architecture
 
 ```
-tcpou_to_mermaid/
+pou2md/
 ├── __init__.py
 ├── __main__.py          # CLI entry point
 ├── converter.py         # Main conversion orchestrator
@@ -56,7 +56,7 @@ Once installed, the CLI tool can be executed from any terminal or directory usin
 pou2md [input] [options]
 
 # Standard Python module syntax
-python -m tcpou_to_mermaid [input] [options]
+python -m pou2md [input] [options]
 ```
 
 ---
@@ -293,7 +293,7 @@ pou2md MyPlcProject/ -r -u --stdout > complete_system_manual.md
 
 ## Diagram Layout & Styling Customization
 
-`tcpou-to-mermaid` provides dedicated flags to fine-tune the look and layout of Mermaid flowcharts to match industrial PLC schematics:
+`pou2md` provides dedicated flags to fine-tune the look and layout of Mermaid flowcharts to match industrial PLC schematics:
 
 ### Wire Routing (`--curve`)
 Select how signal connection lines are interpolated:

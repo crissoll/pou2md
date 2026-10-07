@@ -1,5 +1,5 @@
 """
-Unit and integration tests for the TcPOU to Mermaid converter.
+Unit and integration tests for the POU to Markdown converter.
 """
 
 from __future__ import annotations
@@ -10,14 +10,14 @@ import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from tcpou_to_mermaid.converter import TcPOUConverter
-from tcpou_to_mermaid.errors import TcPOUParseError
-from tcpou_to_mermaid.manifest import load_manifest, manifest_path, save_manifest
-from tcpou_to_mermaid.parser.cfc_parser import CFCParser
-from tcpou_to_mermaid.parser.declaration import DeclarationParser
-from tcpou_to_mermaid.parser.nwl_parser import NWLParser
-from tcpou_to_mermaid.parser.st_parser import STParser
-from tcpou_to_mermaid.renderer.class_diagram import ClassDiagramRenderer
+from pou2md.converter import TcPOUConverter
+from pou2md.errors import TcPOUParseError
+from pou2md.manifest import load_manifest, manifest_path, save_manifest
+from pou2md.parser.cfc_parser import CFCParser
+from pou2md.parser.declaration import DeclarationParser
+from pou2md.parser.nwl_parser import NWLParser
+from pou2md.parser.st_parser import STParser
+from pou2md.renderer.class_diagram import ClassDiagramRenderer
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 POU_DIR = BASE_DIR / "POUs" / "POUs"
@@ -238,7 +238,7 @@ class TestEndToEndConverter(unittest.TestCase):
         cmd = [
             sys.executable,
             "-m",
-            "tcpou_to_mermaid",
+            "pou2md",
             str(POU_DIR / "FB_Blinker.TcPOU"),
             "--stdout",
         ]
@@ -386,7 +386,7 @@ class TestEndToEndConverter(unittest.TestCase):
                 encoding="utf-8",
             )
             result = subprocess.run(
-                [sys.executable, "-m", "tcpou_to_mermaid", "--config", str(config), "--quiet"],
+                [sys.executable, "-m", "pou2md", "--config", str(config), "--quiet"],
                 cwd=str(BASE_DIR),
                 capture_output=True,
                 text=True,
@@ -397,7 +397,7 @@ class TestEndToEndConverter(unittest.TestCase):
             self.assertTrue((output / "unified.md").exists())
 
             version_result = subprocess.run(
-                [sys.executable, "-m", "tcpou_to_mermaid", "--version"],
+                [sys.executable, "-m", "pou2md", "--version"],
                 cwd=str(BASE_DIR),
                 capture_output=True,
                 text=True,
@@ -431,7 +431,7 @@ class TestEndToEndConverter(unittest.TestCase):
             cmd = [
                 sys.executable,
                 "-m",
-                "tcpou_to_mermaid",
+                "pou2md",
                 str(BASE_DIR / "POUs"),
                 "-r",
                 "-u",
@@ -459,7 +459,7 @@ class TestEndToEndConverter(unittest.TestCase):
             cmd = [
                 sys.executable,
                 "-m",
-                "tcpou_to_mermaid",
+                "pou2md",
                 "-r",
                 "-u",
                 "-o",

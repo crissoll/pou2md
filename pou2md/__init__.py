@@ -1,5 +1,5 @@
 """
-TcPOU to Mermaid Converter
+POU to Markdown Converter
 
 Converts TwinCAT 3 .TcPOU files into Mermaid class diagrams and flowcharts
 embedded in Markdown files.
