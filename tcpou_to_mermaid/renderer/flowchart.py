@@ -111,6 +111,13 @@ class FlowchartRenderer:
                 lines.append(self._format_node(node, indent))
             lines.append("")
 
+        rank_alignments = self._compute_rank_alignments(nodes, edges)
+        if rank_alignments:
+            lines.append(f"{indent}%% --- Vertical Rank Alignment ---")
+            for group in rank_alignments:
+                lines.append(f"{indent}{' ~~~ '.join(group)}")
+            lines.append("")
+
         if edges:
             comment = "%% --- Continuity ---" if is_ld else "%% --- Wiring ---"
             lines.append(f"{indent}{comment}")
@@ -234,7 +241,8 @@ class FlowchartRenderer:
         """
         connected_ids = {e.source_id for e in edges} | {e.target_id for e in edges}
         node_map = {n.id: n for n in nodes}
-        node_ids = [n.id for n in nodes if n.id in connected_ids and n.node_type != "JUNCTION"]
+        # Include all connected nodes except RAILs in DAG traversal so junctions propagate depth correctly
+        node_ids = [n.id for n in nodes if n.id in connected_ids and n.node_type != "RAIL"]
 
         adj: dict[str, set[str]] = defaultdict(set)
         in_degree: dict[str, int] = {nid: 0 for nid in node_ids}
@@ -266,7 +274,9 @@ class FlowchartRenderer:
 
         rank_groups: dict[int, list[str]] = defaultdict(list)
         for nid in node_ids:
-            rank_groups[ranks[nid]].append(nid)
+            # Exclude junctions from alignment directives
+            if node_map[nid].node_type != "JUNCTION":
+                rank_groups[ranks[nid]].append(nid)
 
         alignments: list[list[str]] = []
         for r in sorted(rank_groups.keys()):

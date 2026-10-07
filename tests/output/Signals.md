@@ -19,33 +19,40 @@ classDiagram
 ## Implementation (LD) — Network 1
 
 ```mermaid
-%%{ init: { 'flowchart': { 'curve': 'stepAfter' } } }%%
+%%{ init: { 'flowchart': { 'curve': 'step' } } }%%
 flowchart LR
     subgraph Network_1 [" Network 1 "]
-        %% --- Contacts (inputs) ---
-        N1_bCompressor(["GVL_VAR.bCompressor
-        ┤├"])
-        N1_tImAlarmThreshold(["GVL_Var.tImAlarmThreshold"])
+        direction LR
+        %% --- Power Rails ---
+        N1_L["|"]
+        N1_R["|"]
+
+        %% --- Contacts ---
+        N1_bCompressor["—┤ ├—<br/>GVL_VAR.bCompressor"]
+        N1_tImAlarmThreshold["GVL_Var.tImAlarmThreshold"]
 
         %% --- Function Blocks ---
-        N1_TON[["TON
-        fbTimer1"]]
+        N1_TON[["TON<br/>fbTimer1"]]
 
         %% --- Bifurcation Junctions ---
         J_N1_TON_Q(( )):::junction
 
-        %% --- Coils / Outputs ---
-        N1_bSignal(["GVL_Var.bSignal
-        ( )"])
-        N1_DoorIsOpen(["▶ DoorIsOpen
-        (jump label)"])
+        %% --- Coils / Jumps ---
+        N1_bSignal["—( )—<br/>GVL_Var.bSignal"]
+        N1_DoorIsOpen["▶ DoorIsOpen"]
 
-        %% --- Wiring ---
-        N1_bCompressor -- "IN" --> N1_TON
-        N1_tImAlarmThreshold -- "PT" --> N1_TON
-        N1_TON -- "Q" --> J_N1_TON_Q
-        J_N1_TON_Q --> N1_bSignal
-        J_N1_TON_Q --> N1_DoorIsOpen
+        %% --- Vertical Rank Alignment ---
+        N1_bCompressor ~~~ N1_tImAlarmThreshold
+        N1_bSignal ~~~ N1_DoorIsOpen
+
+        %% --- Continuity ---
+        N1_L --- N1_bCompressor
+        N1_bCompressor ===|"IN"| N1_TON
+        N1_tImAlarmThreshold ===|"PT"| N1_TON
+        N1_TON ===|"Q"| J_N1_TON_Q
+        J_N1_TON_Q === N1_bSignal
+        J_N1_TON_Q === N1_DoorIsOpen
+        N1_bSignal === N1_R
 
         classDef junction fill:#333,stroke:#333,width:6px,height:6px
     end
@@ -54,56 +61,64 @@ flowchart LR
 ## Implementation (LD) — Network 2
 
 ```mermaid
-%%{ init: { 'flowchart': { 'curve': 'stepAfter' } } }%%
+%%{ init: { 'flowchart': { 'curve': 'step' } } }%%
 flowchart LR
     subgraph Network_2 [" Network 2 "]
-        %% --- Contacts (inputs) ---
-        N2_bDoorOpen(["GVL_Var.bDoorOpen
-        ┤├"])
-        N2_tDoorOpenThreshold(["GVL_var.tDoorOpenThreshold"])
-        N2_T1s_On(["T#1s"])
-        N2_T1s_Off(["T#1s"])
-        N2_fbTimer2Q(["fbTimer2.Q
-        ┤├"])
+        direction LR
+        %% --- Power Rails ---
+        N2_L["|"]
+        N2_R["|"]
+
+        %% --- Contacts ---
+        N2_bDoorOpen["—┤ ├—<br/>GVL_Var.bDoorOpen"]
+        N2_tDoorOpenThreshold["GVL_var.tDoorOpenThreshold"]
+        N2_T1s_On["T#1s"]
+        N2_T1s_Off["T#1s"]
+        N2_fbTimer2Q["—┤ ├—<br/>fbTimer2.Q"]
 
         %% --- Function Blocks ---
-        N2_AND{{"AND"}}
-        N2_Blinker[["FB_Blinker
-        fbBlinker"]]
-        N2_TON[["TON
-        fbTimer2"]]
+        N2_Blinker[["FB_Blinker<br/>fbBlinker"]]
+        N2_TON[["TON<br/>fbTimer2"]]
 
-        %% --- Coils / Outputs ---
-        N2_bSignal(["GVL_Var.bSignal
-        ( )"])
+        %% --- Coils / Jumps ---
+        N2_bSignal["—( )—<br/>GVL_Var.bSignal"]
 
-        %% --- Wiring ---
-        N2_Blinker -- "bOut" --> N2_AND
-        N2_TON -- "Q → bStart" --> N2_Blinker
-        N2_bDoorOpen -- "IN" --> N2_TON
-        N2_tDoorOpenThreshold -- "PT" --> N2_TON
-        N2_T1s_On -- "tSignalTimerOn" --> N2_Blinker
-        N2_T1s_Off -- "tSignalTimerOff" --> N2_Blinker
-        N2_fbTimer2Q --> N2_AND
-        N2_AND --> N2_bSignal
+        %% --- Vertical Rank Alignment ---
+        N2_bDoorOpen ~~~ N2_tDoorOpenThreshold ~~~ N2_T1s_On ~~~ N2_T1s_Off
+
+        %% --- Continuity ---
+        N2_L --- N2_bDoorOpen
+        N2_TON ===|"Q → bStart"| N2_Blinker
+        N2_bDoorOpen ===|"IN"| N2_TON
+        N2_tDoorOpenThreshold ===|"PT"| N2_TON
+        N2_T1s_On ===|"tSignalTimerOn"| N2_Blinker
+        N2_T1s_Off ===|"tSignalTimerOff"| N2_Blinker
+        N2_Blinker ===|"bOut"| N2_fbTimer2Q
+        N2_fbTimer2Q === N2_bSignal
+        N2_bSignal === N2_R
     end
 ```
 
 ## Implementation (LD) — Network 3 (Label: DoorIsOpen)
 
 ```mermaid
-%%{ init: { 'flowchart': { 'curve': 'stepAfter' } } }%%
+%%{ init: { 'flowchart': { 'curve': 'step' } } }%%
 flowchart LR
     subgraph Network_3 [" Network 3 — Label: DoorIsOpen "]
-        %% --- Contacts (inputs) ---
-        N3_bDoorOpen(["GVL_var.bDoorOpen
-        ┤├"])
+        direction LR
+        %% --- Power Rails ---
+        N3_L["|"]
+        N3_R["|"]
 
-        %% --- Coils / Outputs ---
-        N3_bLamp(["GVL_Var.bLamp
-        ( )"])
+        %% --- Contacts ---
+        N3_bDoorOpen["—┤ ├—<br/>GVL_var.bDoorOpen"]
 
-        %% --- Wiring ---
-        N3_bDoorOpen --> N3_bLamp
+        %% --- Coils / Jumps ---
+        N3_bLamp["—( )—<br/>GVL_Var.bLamp"]
+
+        %% --- Continuity ---
+        N3_L --- N3_bDoorOpen
+        N3_bDoorOpen === N3_bLamp
+        N3_bLamp === N3_R
     end
 ```

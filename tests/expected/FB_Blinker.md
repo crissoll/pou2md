@@ -43,6 +43,10 @@ flowchart LR
     %% --- Outputs ---
     bOut(["bOut"])
 
+    %% --- Vertical Rank Alignment ---
+    bStart ~~~ fbTimerBQ ~~~ tSignalTimerOn ~~~ tSignalTimerOff
+    TON_B ~~~ bOut
+
     %% --- Wiring ---
     AND1 -- "IN" --> TON_A
     bStart --> AND1

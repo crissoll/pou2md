@@ -22,7 +22,7 @@ classDiagram
 ## Implementation (FBD) — Network 1
 
 ```mermaid
-%%{ init: { 'flowchart': { 'curve': 'stepAfter' } } }%%
+%%{ init: { 'flowchart': { 'curve': 'step' } } }%%
 flowchart LR
     %% --- Operands / Variables ---
     bStart(["bStart"])
@@ -42,6 +42,10 @@ flowchart LR
 
     %% --- Outputs ---
     bOut(["bOut"])
+
+    %% --- Vertical Rank Alignment ---
+    bStart ~~~ fbTimerBQ ~~~ tSignalTimerOn ~~~ tSignalTimerOff
+    TON_B ~~~ bOut
 
     %% --- Wiring ---
     AND1 -- "IN" --> TON_A

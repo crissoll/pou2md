@@ -41,6 +41,10 @@ flowchart LR
         N1_bSignal["—( )—<br/>GVL_Var.bSignal"]
         N1_DoorIsOpen["▶ DoorIsOpen"]
 
+        %% --- Vertical Rank Alignment ---
+        N1_bCompressor ~~~ N1_tImAlarmThreshold
+        N1_bSignal ~~~ N1_DoorIsOpen
+
         %% --- Continuity ---
         N1_L --- N1_bCompressor
         N1_bCompressor ===|"IN"| N1_TON
@@ -78,6 +82,9 @@ flowchart LR
 
         %% --- Coils / Jumps ---
         N2_bSignal["—( )—<br/>GVL_Var.bSignal"]
+
+        %% --- Vertical Rank Alignment ---
+        N2_bDoorOpen ~~~ N2_tDoorOpenThreshold ~~~ N2_T1s_On ~~~ N2_T1s_Off
 
         %% --- Continuity ---
         N2_L --- N2_bDoorOpen
