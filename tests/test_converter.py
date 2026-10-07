@@ -20,7 +20,7 @@ from pou2md.parser.st_parser import STParser
 from pou2md.renderer.class_diagram import ClassDiagramRenderer
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-POU_DIR = BASE_DIR / "POUs" / "POUs"
+POU_DIR = BASE_DIR / "tests" / "fixtures" / "pous"
 EXPECTED_DIR = BASE_DIR / "tests" / "expected"
 
 
@@ -432,7 +432,7 @@ class TestEndToEndConverter(unittest.TestCase):
                 sys.executable,
                 "-m",
                 "pou2md",
-                str(BASE_DIR / "POUs"),
+                str(BASE_DIR / "tests" / "fixtures"),
                 "-r",
                 "-u",
                 "-o",
@@ -467,7 +467,7 @@ class TestEndToEndConverter(unittest.TestCase):
             ]
             result = subprocess.run(
                 cmd,
-                cwd=str(BASE_DIR / "POUs"),
+                cwd=str(BASE_DIR / "tests" / "fixtures"),
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
