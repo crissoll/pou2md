@@ -37,7 +37,7 @@ jobs:
       - name: Test CLI entry points
         run: |
           pou2md --help
-          tcpou-to-mermaid --help
+          python -m tcpou_to_mermaid --help
 
   build-check:
     name: Verify Package Build & Metadata
