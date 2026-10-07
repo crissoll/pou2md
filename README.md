@@ -37,76 +37,228 @@ tcpou_to_mermaid/
     └── markdown.py      # Markdown document generator
 ```
 
-## Installation & Global Usage
+## Installation & CLI Setup
 
-To call the converter from **any folder or terminal**, install it in editable mode:
+Install the package using `pip` (editable mode is recommended during development):
+
 ```bash
+# Editable install (recommended)
 pip install -e .
+
+# Or standard install
+pip install .
 ```
 
-Once installed, `tcpou-to-mermaid`, `tcpou_to_mermaid`, and the short alias `pou2md` are all available system-wide:
+Once installed, the CLI tool can be executed from any terminal or directory using `pou2md` (or via Python's `-m` switch):
 
 ```bash
-# Call from anywhere using the short alias:
-pou2md path/to/my_pou.TcPOU -o output/
-pou2md path/to/project/ -r -o output/
-pou2md path/to/project/ -r -u -o complete_doc.md
+# Global CLI command
+pou2md <input> [options]
+
+# Standard Python module syntax
+python -m tcpou_to_mermaid <input> [options]
 ```
 
-You can also still use the standard `python -m` syntax:
+---
+
+## CLI Reference
+
+### Command Syntax
+
 ```bash
-python -m tcpou_to_mermaid <args>
+pou2md <input> [-o OUTPUT] [-r] [-u] [--stdout] [--curve {step,stepAfter,linear,basis,none}] [--no-bifurcate] [--repeat-inputs]
 ```
 
-### Print to stdout
+### Options & Arguments
+
+| Argument / Flag | Value Type / Choices | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `input` *(positional)* | `Path` (file or folder) | *(Required)* | Path to a single `.TcPOU` file or a directory containing `.TcPOU` files. |
+| `-o`, `--output` | `Path` (folder or `.md` file) | `None` | Destination directory (e.g. `docs/`) or specific file path (e.g. `docs/system.md`). Required for directory input unless `--stdout` is set. |
+| `-r`, `--recursive` | `Flag` | `False` | Recursively scan subdirectories for `.TcPOU` files. Relative subfolder paths are flattened into filenames (e.g. `Motion--Axes--FB_Drive.md`). |
+| `-u`, `--unified` | `Flag` | `False` | Merges all converted POUs into a single Markdown document separated by horizontal dividers (`---`). |
+| `--stdout` | `Flag` | `False` | Prints generated Markdown directly to `stdout` instead of writing to disk. |
+| `--curve` | `step` \| `stepAfter` \| `linear` \| `basis` \| `none` | `step` | Mermaid flowchart wire routing style. `step` generates orthogonal right-angle wires entering blocks horizontally (`>`). |
+| `--no-bifurcate` | `Flag` | *(Bifurcation enabled)* | Disables bifurcation junction nodes (`(( ))`), drawing independent wires from the source pin to each destination pin. |
+| `--repeat-inputs` | `Flag` | `False` | In CFC diagrams, duplicates input variable blocks next to each connected pin to eliminate long cross-sheet wires. |
+| `-h`, `--help` | `Flag` | - | Display CLI help message and exit. |
+
+---
+
+## Output Resolution Rules
+
+The destination path depends on the input type and flags provided:
+
+| Input Type | Flags | Destination Behavior |
+| :--- | :--- | :--- |
+| **Single `.TcPOU` file** | *No `-o` or `--stdout`* | Prints generated Markdown directly to `stdout`. |
+| **Single `.TcPOU` file** | `-o path/to/dir/` | Creates `path/to/dir/<POU_NAME>.md`. |
+| **Single `.TcPOU` file** | `-o path/to/custom.md` | Writes directly to `path/to/custom.md`. |
+| **Directory** | `-o path/to/dir/` | Generates individual `<POU_NAME>.md` files inside `path/to/dir/`. |
+| **Directory** | `-r -o path/to/dir/` | Recursively scans subfolders; outputs flattened names: `parent--subfolder--<POU_NAME>.md`. |
+| **Directory** | `-u -o path/to/dir/` | Combines all POUs into `path/to/dir/unified.md`. |
+| **Directory** | `-u -o path/to/custom.md`| Combines all POUs into the exact specified file `path/to/custom.md`. |
+| **Any Input** | `--stdout` | Emits Markdown to terminal `stdout` without creating any files on disk. |
+
+---
+
+## Practical CLI Recipes
+
+### 1. Quick Inspection & Terminal Piping
+Inspect generated Markdown or pipe directly into tools like `bat`, `glow`, or clipboard utilities:
+
 ```bash
-python -m tcpou_to_mermaid POUs/POUs/FB_Blinker.TcPOU --stdout
+# Print POU markdown directly to stdout
+pou2md POUs/FB_Motor.TcPOU --stdout
+
+# Pipe output to a markdown viewer (bat, glow, etc.)
+pou2md POUs/FB_Motor.TcPOU --stdout | bat -l md
+
+# Copy markdown directly to clipboard (Windows PowerShell)
+pou2md POUs/FB_Motor.TcPOU --stdout | Set-Clipboard
 ```
 
-### Batch Convert a Directory
+### 2. Single File Conversion
+Convert an individual POU into a specific output directory or custom filename:
+
 ```bash
-python -m tcpou_to_mermaid POUs/POUs/ -o output/
+# Save to an output directory (produces output/FB_Motor.md)
+pou2md POUs/FB_Motor.TcPOU -o output/
+
+# Save to a specific custom filename
+pou2md POUs/FB_Motor.TcPOU -o docs/motor_controller.md
 ```
 
-### Recursive Directory Conversion (`-r`)
-Recursively searches folder trees for `.TcPOU` files and flattens their relative directory paths into filenames (`foldera--folderb--file.md`):
+### 3. Batch Directory Conversion
+Convert all `.TcPOU` files located directly inside a folder:
+
 ```bash
-python -m tcpou_to_mermaid Project/ -r -o output/
+pou2md POUs/ -o docs/pous/
 ```
 
-### Unified Single File (`-u`)
-Combines all converted POUs into a single Markdown document:
+### 4. Recursive Project Conversion (`-r`)
+Recursively scan complete TwinCAT PLC project structures. The converter flattens nested folder hierarchies into distinct, clash-free filenames:
+
 ```bash
-# Save to unified file in directory (default: unified.md)
-python -m tcpou_to_mermaid POUs/POUs/ -u -o output/
-
-# Save to a specific file
-python -m tcpou_to_mermaid POUs/ -r -u -o full_system.md
-
-# Print unified Markdown directly to stdout
-python -m tcpou_to_mermaid POUs/ -r -u --stdout
+pou2md MyPlcProject/ -r -o docs/generated/
 ```
 
-### Visual Styling: Straight Lines & Wire Routing
-By default, the converter produces diagrams matching TwinCAT graphical schematics:
-- **Straight Orthogonal Lines**: Uses `step` midpoint curve interpolation for clean right-angle wires where arrows enter flush into the node face (`>`).
-- **Bifurcation Junctions**: Block outputs with multiple destinations split at a single bifurcation junction dot (`(( ))`) instead of duplicating pin labels.
-- **Rank Alignment**: CFC nodes are automatically column-aligned using topological depth and XML visual bounds, preventing wires from cutting through intermediate blocks.
+*Example name mapping:*
+- `MyPlcProject/Motion/Axes/FB_Axis.TcPOU` &rarr; `docs/generated/Motion--Axes--FB_Axis.md`
+- `MyPlcProject/Diagnostics/FB_Logger.TcPOU` &rarr; `docs/generated/Diagnostics--FB_Logger.md`
 
-You can customize this behavior via CLI flags:
+### 5. Unified Single-Document Generation (`-u`)
+Merge your entire PLC library or project into a single Markdown document. Perfect for single-page project wikis, Obsidian vaults, or MkDocs:
+
 ```bash
-# Use smooth curves instead of orthogonal lines:
-pou2md path/to/POU.TcPOU --curve basis
+# Save as default unified.md in target directory
+pou2md MyPlcProject/ -r -u -o docs/
 
-# Use direct point-to-point lines:
-pou2md path/to/POU.TcPOU --curve linear
+# Save with a custom documentation filename
+pou2md MyPlcProject/ -r -u -o docs/complete_system_manual.md
 
-# Disable bifurcation (draw separate wires per connection):
-pou2md path/to/POU.TcPOU --no-bifurcate
-
-# Repeat input variable blocks per connection in CFC (avoids cross-diagram wires):
-pou2md path/to/POU.TcPOU --repeat-inputs
+# Stream the entire unified manual to stdout for downstream processing
+pou2md MyPlcProject/ -r -u --stdout > complete_system_manual.md
 ```
+
+---
+
+## Diagram Layout & Styling Customization
+
+`tcpou-to-mermaid` provides dedicated flags to fine-tune the look and layout of Mermaid flowcharts to match industrial PLC schematics:
+
+### Wire Routing (`--curve`)
+Select how signal connection lines are interpolated:
+
+```bash
+# Default: Orthogonal right angles entering nodes horizontally (industrial CAD style)
+pou2md POUs/FB_Controller.TcPOU -o docs/ --curve step
+
+# Smooth cubic splines (fluid curves)
+pou2md POUs/FB_Controller.TcPOU -o docs/ --curve basis
+
+# Direct point-to-point straight lines
+pou2md POUs/FB_Controller.TcPOU -o docs/ --curve linear
+
+# Standard Mermaid default curve interpolation
+pou2md POUs/FB_Controller.TcPOU -o docs/ --curve none
+```
+
+### Output Bifurcation Junctions (`--no-bifurcate`)
+When an output pin connects to multiple downstream blocks:
+- **Default (Bifurcation enabled)**: Splits wires using a clean junction dot (`(( ))`), preventing duplicate pin labels and visual clutter.
+- **`--no-bifurcate`**: Draws separate, independent wires directly from the output pin to every target node.
+
+```bash
+# Disable bifurcation junctions
+pou2md POUs/FB_Controller.TcPOU -o docs/ --no-bifurcate
+```
+
+### CFC Input Variable Duplication (`--repeat-inputs`)
+In large Continuous Function Charts (CFC), multiple blocks often share common inputs (e.g. `bEnable` or `stConfig`):
+- **Default (`False`)**: Creates a single node for each input variable and connects it across the diagram.
+- **`--repeat-inputs`**: Creates an input variable block next to each block pin it feeds, eliminating long feedback loops and wires crossing through the middle of the sheet.
+
+```bash
+pou2md POUs/CFC_PlantControl.TcPOU -o docs/ --repeat-inputs
+```
+
+---
+
+## CI / CD & Automation Integration
+
+### GitHub Actions Workflow Example
+Automatically generate up-to-date Markdown diagrams whenever PLC files are pushed:
+
+```yaml
+name: Generate PLC Documentation
+on: [push, pull_request]
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install converter
+        run: pip install .
+      - name: Build documentation
+        run: pou2md src/ -r -u -o docs/plc_architecture.md
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: plc-docs
+          path: docs/plc_architecture.md
+```
+
+### Shell Automation Scripts
+
+**PowerShell (Windows):**
+```powershell
+# Convert all POU subdirectories into separate documentation folders
+Get-ChildItem -Directory "src/PLC/*" | ForEach-Object {
+    pou2md $_.FullName -r -o "docs/$($_.Name)"
+}
+```
+
+**Bash (Linux / macOS):**
+```bash
+# Compile documentation for each PLC subsystem
+for dir in src/PLC/*/; do
+  name=$(basename "$dir")
+  pou2md "$dir" -r -u -o "docs/${name}.md"
+done
+```
+
+---
+
+## Exit Codes
+
+For CI/CD scripts and automated tools, the CLI returns standard status codes:
+- `0`: Execution completed successfully.
+- `1`: Error encountered (e.g. input path does not exist, or directory input without `-o` / `--stdout`).
 
 ## Running Tests
 
@@ -129,4 +281,3 @@ python -m unittest tests/test_converter.py -v
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
